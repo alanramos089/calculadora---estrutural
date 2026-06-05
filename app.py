@@ -92,9 +92,10 @@ for c in st.session_state.comodos:
 concreto_global = total_concreto_paredes + total_concreto_lajes
 forma_global = total_forma_paredes + total_forma_lajes
 
-# --- INTERFACE POR ABAS CONSOLIDADAS ---
+# --- INTERFACE POR ABAS ---
 tab0, tab1 = st.tabs(["📊 Quantitativos Realistas", "🧱 Maquete 3D Detalhada"])
 
+# ABA 0: QUANTITATIVOS
 with tab0:
     st.subheader("📋 Painel Construtivo Monolítico")
     st.dataframe(st.session_state.comodos, use_container_width=True)
@@ -111,6 +112,7 @@ with tab0:
         st.metric(label="Área de Tela Eletrosoldada Q092", value=f"{total_telas_aço:.2f} m²")
         st.caption("Considerando margem técnica para transpasse mínimo de gomos")
 
+# ABA 1: MAQUETE 3D
 with tab1:
     with st.container(border=True):
         st.markdown("### 🔍 Navegação da Maquete Estrutural")
@@ -130,49 +132,52 @@ with tab1:
     
     fig_3d = go.Figure()
     
-    x_v = [0, L, L, 0,  0, L, L, 0]
-    y_v = [0, 0, C, C,  0, 0, C, C]
-    z_v = [0, 0, 0, 0,  pe_direito, pe_direito, pe_direito, pe_direito]
-    
-    i_v =
-    j_v =
-    k_v =
-    
+    # 1. REPRESENTAÇÃO DAS PAREDES FECHADAS (Estrutura Sólida Blindada)
+    # Parede Frontal e Traseira
+    fig_3d.add_trace(go.Scatter3d(x=[0, L, L, 0, 0], y=[0, 0, 0, 0, 0], z=[0, 0, pe_direito, pe_direito, 0], mode='lines', line=dict(color='black', width=3), name="Parede"))
+    fig_3d.add_trace(go.Scatter3d(x=[0, L, L, 0, 0], y=[C, C, C, C, C], z=[0, 0, pe_direito, pe_direito, 0], mode='lines', line=dict(color='black', width=3), name="Parede"))
+    # Parede Esquerda e Direita
+    fig_3d.add_trace(go.Scatter3d(x=[0, 0, 0, 0, 0], y=[0, C, C, 0, 0], z=[0, 0, pe_direito, pe_direito, 0], mode='lines', line=dict(color='black', width=3), name="Parede"))
+    fig_3d.add_trace(go.Scatter3d(x=[L, L, L, L, L], y=[0, C, C, 0, 0], z=[0, 0, pe_direito, pe_direito, 0], mode='lines', line=dict(color='black', width=3), name="Parede"))
+
+    # Preenchimento volumétrico translúcido cinza das paredes
     fig_3d.add_trace(go.Mesh3d(
-        x=x_v, y=y_v, z=z_v, i=i_v, j=j_v, k=k_v,
-        color='rgb(140, 145, 150)', opacity=0.85, flatshading=True, name="Paredes de Concreto"
+        x=[0, L, L, 0, 0, L, L, 0],
+        y=[0, 0, C, C, 0, 0, C, C],
+        z=[0, 0, 0, 0, pe_direito, pe_direito, pe_direito, pe_direito],
+        color='rgb(140, 145, 150)', opacity=0.7, flatshading=True, name="Concreto"
     ))
     
+    # 2. LAJE DE COBERTURA COM BEIRAL DE 30CM (Conforme Prancha Técnica)
     beiral = 0.30
-    lx = [-beiral, L+beiral, L+beiral, -beiral]
-    ly = [-beiral, -beiral, C+beiral, C+beiral]
-    lz = [pe_direito, pe_direito, pe_direito, pe_direito]
+    fig_3d.add_trace(go.Mesh3d(
+        x=[-beiral, L+beiral, L+beiral, -beiral],
+        y=[-beiral, -beiral, C+beiral, C+beiral],
+        z=[pe_direito, pe_direito, pe_direito, pe_direito],
+        color='rgb(170, 175, 180)', opacity=0.9, name="Laje com Beiral"
+    ))
     
-    fig_3d.add_trace(go.Mesh3d(x=lx, y=ly, z=lz, color='rgb(170, 175, 180)', opacity=0.95, name="Laje com Beiral"))
+    # Linha de contorno do beiral
+    fig_3d.add_trace(go.Scatter3d(
+        x=[-beiral, L+beiral, L+beiral, -beiral, -beiral],
+        y=[-beiral, -beiral, C+beiral, C+beiral, -beiral],
+        z=[pe_direito, pe_direito, pe_direito, pe_direito, pe_direito],
+        mode='lines', line=dict(color='black', width=4), showlegend=False
+    ))
     
-    offset = 0.05  
+    # 3. REPRESENTAÇÃO DA TELA ELETROSOLDADA Q092 (Linha Vermelha Tracejada Interna)
+    offset = 0.05
     fig_3d.add_trace(go.Scatter3d(
         x=[offset, L-offset, L-offset, offset, offset],
         y=[offset, offset, C-offset, C-offset, offset],
         z=[pe_direito/2, pe_direito/2, pe_direito/2, pe_direito/2, pe_direito/2],
-        mode='lines', line=dict(color='red', width=2, dash='dash'), name="Tela Q092"
+        mode='lines', line=dict(color='red', width=3, dash='dash'), name="Tela Q092"
     ))
     
+    # COTAS DIMENSIONAIS (Valores flutuantes orange)
     fig_3d.add_trace(go.Scatter3d(x=[L/2], y=[-0.4], z=[0.1], mode="text", text=[f"L = {L:.2f} m"], textfont=dict(color="orange", size=14, family="Arial Black")))
     fig_3d.add_trace(go.Scatter3d(x=[L + 0.4], y=[C/2], z=[0.1], mode="text", text=[f"C = {C:.2f} m"], textfont=dict(color="orange", size=14, family="Arial Black")))
     fig_3d.add_trace(go.Scatter3d(x=[-0.4], y=[-0.4], z=[pe_direito/2], mode="text", text=[f"H = {pe_direito:.2f} m"], textfont=dict(color="orange", size=14, family="Arial Black")))
-
-    # LINHAS DE CONTORNO CORRIGIDAS SEM CAMPOS VAZIOS
-    linhas = [
-        ([0, L, L, 0, 0], [0, 0, C, C, 0], [0, 0, 0, 0, 0]),
-        ([-beiral, L+beiral, L+beiral, -beiral, -beiral], [-beiral, -beiral, C+beiral, C+beiral, -beiral], [pe_direito, pe_direito, pe_direito, pe_direito, pe_direito]),
-        ([0, 0], [0, 0], [0, pe_direito]), 
-        ([L, L], [0, 0], [0, pe_direito]), 
-        ([L, L], [C, C], [0, pe_direito]), 
-        ([0, 0], [C, C], [0, pe_direito])
-    ]
-    for lx, ly, lz in linhas:
-        fig_3d.add_trace(go.Scatter3d(x=lx, y=ly, z=lz, mode='lines', line=dict(color='black', width=3), showlegend=False))
 
     fig_3d.update_layout(
         dragmode='orbit',
