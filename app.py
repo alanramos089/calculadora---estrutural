@@ -51,7 +51,7 @@ if st.session_state.comodos:
     comodo_para_deletar = st.sidebar.selectbox("Selecione qual deseja remover", opcoes_exclusao)
     
     if st.sidebar.button("❌ Excluir Cômodo Selecionado"):
-        idx_deletar = int(comodo_para_deletar.split(" - "))
+        idx_deletar = int(comodo_para_deletar.split(" - ")[0])
         st.session_state.comodos.pop(idx_deletar)
         st.toast("Cômodo removido com sucesso!")
         st.rerun()
@@ -105,10 +105,11 @@ for c in st.session_state.comodos:
 concreto_global = total_concreto_paredes + total_concreto_lajes
 forma_global = total_forma_paredes + total_forma_lajes
 
-# --- INTERFACE POR ABAS ---
+# --- INTERFACE POR ABAS CORRIGIDA ---
 tabs = st.tabs(["📊 Quantitativos Realistas", "🧱 Maquete 3D Prédio/Cômodo"])
 
-with tabs:
+# ABA 0: QUANTITATIVOS
+with tabs[0]:
     st.subheader("📋 Painel Construtivo (Paredes de Concreto)")
     st.dataframe(st.session_state.comodos, use_container_width=True)
     
@@ -125,35 +126,31 @@ with tabs:
         st.metric(label="Gabaritos / Kit Vão de Portas", value=f"{total_portas} jgs")
         st.caption(f"Necessário separar {total_portas} caixilhos estruturais para travar a concretagem")
 
-with tabs:
+# ABA 1: MAQUETE 3D
+with tabs[1]:
     st.subheader(f"🧱 Paredes Sólidas Verticais Prontas: {comodo_foco['nome']}")
     st.write("Utilize os controles integrados no gráfico abaixo para rotacionar em 360° automaticamente.")
     
     fig_3d = go.Figure()
     
-    # 8 pontos coordenados retificados (Paredes perfeitamente verticais)
     x_v = [0, L, L, 0,  0, L, L, 0]
     y_v = [0, 0, C, C,  0, 0, C, C]
     z_v = [0, 0, 0, 0,  pe_direito, pe_direito, pe_direito, pe_direito]
     
-    # Mapeamento estrito para fechar os quadrantes verticais perfeitamente retos (Cubo)
-    i_v = [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 1, 2]
-    j_v = [1, 4, 2, 5, 3, 6, 0, 7, 5, 7, 5, 6]
-    k_v = [4, 5, 5, 6, 6, 7, 7, 4, 6, 6, 2, 3]
+    i_v = [0, 0, 0, 1, 1, 2, 2, 3, 3, 0]
+    j_v = [1, 4, 5, 2, 5, 6, 3, 7, 0, 4]
+    k_v = [4, 5, 1, 5, 6, 3, 7, 2, 4, 7]
     
-    # Desenha as paredes de concreto fechadas corretas
     fig_3d.add_trace(go.Mesh3d(
         x=x_v, y=y_v, z=z_v, i=i_v, j=j_v, k=k_v,
         color='rgb(135, 140, 145)', opacity=0.95, flatshading=True, name="Paredes"
     ))
     
-    # Desenha a laje plana superior
     fig_3d.add_trace(go.Mesh3d(
         x=[0, L, L, 0], y=[0, 0, C, C], z=[pe_direito, pe_direito, pe_direito, pe_direito],
         color='rgb(165, 170, 175)', opacity=0.9, name="Laje"
     ))
     
-    # Linhas estruturais pretas para dar nitidez visual nas quinas
     linhas = [
         ([0, L, L, 0, 0], [0, 0, C, C, 0], [0, 0, 0, 0, 0]),
         ([0, L, L, 0, 0], [0, 0, C, C, 0], [pe_direito, pe_direito, pe_direito, pe_direito, pe_direito]),
@@ -165,14 +162,13 @@ with tabs:
     for lx, ly, lz in linhas:
         fig_3d.add_trace(go.Scatter3d(x=lx, y=ly, z=lz, mode='lines', line=dict(color='black', width=4), showlegend=False))
 
-    # --- IMPLEMENTAÇÃO DO GIRO COMPLETO AUTOMÁTICO (360 DEGREES ANIMAÇÃO) ---
-    # Criando os quadros de animação descrevendo uma órbita circular estável ao redor do centro da casa
+    # --- ANIMAÇÃO GIRO 360° ---
     frames = []
-    lista_angulos = np.linspace(0, 2 * np.pi, 60) # 60 posições calculadas
+    lista_angulos = np.linspace(0, 2 * np.pi, 60)
     
     centro_x = L / 2
     centro_y = C / 2
-    raio_camera = max(L, C) * 2 # Distância focal segura para não cortar o modelo
+    raio_camera = max(L, C) * 2
     
     for angulo in lista_angulos:
         cam_x = centro_x + raio_camera * np.cos(angulo)
@@ -185,7 +181,6 @@ with tabs:
         
     fig_3d.frames = frames
 
-    # Adicionando botões de controle de animação (Play/Pause) integrados dentro do painel
     fig_3d.update_layout(
         updatemenus=[
             dict(
