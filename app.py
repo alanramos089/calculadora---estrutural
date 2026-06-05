@@ -10,7 +10,7 @@ st.write("Layout estrutural e quantitativos baseados em painéis monolíticos co
 # Inicialização padrão baseada na prancha técnica (Módulo Habitacional 7.70x3.20m)
 if 'comodos' not in st.session_state:
     st.session_state.comodos = [
-        {"nome": "Módulo Habitacional", "largura": 3.20, "comprimento": 7.70, "portas": 1, "janelas": 1}
+        {"nome": "Sala Principal", "largura": 4.00, "comprimento": 3.50, "portas": 1, "janelas": 1}
     ]
 
 # --- BARRA LATERAL ---
@@ -23,7 +23,7 @@ with st.sidebar.form("configuracoes_obra_form"):
     
     st.markdown("---")
     st.markdown("### 🚪 Adicionar Novo Cômodo/Módulo")
-    nome_c = st.text_input("Nome do Ambiente", value="Quarto Suíte")
+    nome_c = st.text_input("Nome do Ambiente", value="Quarto")
     larg_c = st.number_input("Largura Interna (m)", min_value=1.0, max_value=15.0, value=3.20, step=0.1)
     comp_c = st.number_input("Comprimento Interno (m)", min_value=1.0, max_value=15.0, value=3.00, step=0.1)
     
@@ -39,9 +39,22 @@ if botao_calcular:
     })
     st.rerun()
 
+# --- GERENCIADOR DE EXCLUSÃO ---
+if st.session_state.comodos:
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 🗑️ Gerenciar / Excluir Cômodo")
+    opcoes_exclusao = [f"{i} - {c['nome']} ({c['largura']}x{c['comprimento']})" for i, c in enumerate(st.session_state.comodos)]
+    comodo_para_deletar = st.sidebar.selectbox("Selecione qual deseja remover", opcoes_exclusao)
+    
+    if st.sidebar.button("❌ Excluir Cômodo Selecionado"):
+        idx_deletar = int(comodo_para_deletar.split(" - "))
+        st.session_state.comodos.pop(idx_deletar)
+        st.toast("Cômodo removido com sucesso!")
+        st.rerun()
+
 if st.sidebar.button("🧹 Limpar Toda a Obra"):
     st.session_state.comodos = [
-        {"nome": "Módulo Habitacional", "largura": 3.20, "comprimento": 7.70, "portas": 1, "janelas": 1}
+        {"nome": "Sala Principal", "largura": 4.00, "comprimento": 3.50, "portas": 1, "janelas": 1}
     ]
     st.rerun()
 
@@ -74,7 +87,6 @@ for c in st.session_state.comodos:
     total_forma_paredes += (forma_interna_bruta + forma_externa_bruta) - (area_descontos * 2)
     total_forma_lajes += (w * h)
     
-    # Estimativa de consumo de tela soldada Q092 (considerando transpasse de gomos da prancha)
     total_telas_aço += area_parede_bruta * 1.15 
 
 concreto_global = total_concreto_paredes + total_concreto_lajes
@@ -100,7 +112,6 @@ with tab0:
         st.caption("Considerando margem técnica para transpasse mínimo de gomos")
 
 with tab1:
-    # Seletor explícito e destacado no topo da maquete
     with st.container(border=True):
         st.markdown("### 🔍 Navegação da Maquete Estrutural")
         lista_nomes_comodos = [f"{i} - {c['nome']}" for i, c in enumerate(st.session_state.comodos)]
@@ -119,17 +130,19 @@ with tab1:
     
     fig_3d = go.Figure()
     
-    # 1. Geometria Sólida das Paredes (Malha Retificada)
     x_v = [0, L, L, 0,  0, L, L, 0]
     y_v = [0, 0, C, C,  0, 0, C, C]
     z_v = [0, 0, 0, 0,  pe_direito, pe_direito, pe_direito, pe_direito]
     
+    i_v =
+    j_v =
+    k_v =
+    
     fig_3d.add_trace(go.Mesh3d(
-        x=x_v, y=y_v, z=z_v, i=[0,3,4,7,0,1,5,4,1,2,6,5,2,3,7,6], j=[1,2,5,6,4,5,1,0,2,3,7,6,3,0,4,7], k=[2,0,6,4,5,1,0,2,3,7,6,5,0,3,7,4],
+        x=x_v, y=y_v, z=z_v, i=i_v, j=j_v, k=k_v,
         color='rgb(140, 145, 150)', opacity=0.85, flatshading=True, name="Paredes de Concreto"
     ))
     
-    # 2. Laje de Cobertura com Projeção de Beiral (Avanço de 30cm conforme detalhamento)
     beiral = 0.30
     lx = [-beiral, L+beiral, L+beiral, -beiral]
     ly = [-beiral, -beiral, C+beiral, C+beiral]
@@ -137,8 +150,7 @@ with tab1:
     
     fig_3d.add_trace(go.Mesh3d(x=lx, y=ly, z=lz, color='rgb(170, 175, 180)', opacity=0.95, name="Laje com Beiral"))
     
-    # 3. Representação visual da Tela Eletrosoldada Q092 (Malha Interna em Vermelho Tracejado)
-    offset = 0.05  # Posicionada no centro da parede de 10cm
+    offset = 0.05  
     fig_3d.add_trace(go.Scatter3d(
         x=[offset, L-offset, L-offset, offset, offset],
         y=[offset, offset, C-offset, C-offset, offset],
@@ -146,16 +158,18 @@ with tab1:
         mode='lines', line=dict(color='red', width=2, dash='dash'), name="Tela Q092"
     ))
     
-    # Cotas dimensionais flutuantes nas bordas
     fig_3d.add_trace(go.Scatter3d(x=[L/2], y=[-0.4], z=[0.1], mode="text", text=[f"L = {L:.2f} m"], textfont=dict(color="orange", size=14, family="Arial Black")))
     fig_3d.add_trace(go.Scatter3d(x=[L + 0.4], y=[C/2], z=[0.1], mode="text", text=[f"C = {C:.2f} m"], textfont=dict(color="orange", size=14, family="Arial Black")))
     fig_3d.add_trace(go.Scatter3d(x=[-0.4], y=[-0.4], z=[pe_direito/2], mode="text", text=[f"H = {pe_direito:.2f} m"], textfont=dict(color="orange", size=14, family="Arial Black")))
 
-    # Linhas pretas estruturais
+    # LINHAS DE CONTORNO CORRIGIDAS SEM CAMPOS VAZIOS
     linhas = [
-        ([0, L, L, 0, 0], [0, 0, C, C, 0],),
+        ([0, L, L, 0, 0], [0, 0, C, C, 0], [0, 0, 0, 0, 0]),
         ([-beiral, L+beiral, L+beiral, -beiral, -beiral], [-beiral, -beiral, C+beiral, C+beiral, -beiral], [pe_direito, pe_direito, pe_direito, pe_direito, pe_direito]),
-        (,, [0, pe_direito]), ([L, L],, [0, pe_direito]), ([L, L], [C, C], [0, pe_direito]), (, [C, C], [0, pe_direito])
+        ([0, 0], [0, 0], [0, pe_direito]), 
+        ([L, L], [0, 0], [0, pe_direito]), 
+        ([L, L], [C, C], [0, pe_direito]), 
+        ([0, 0], [C, C], [0, pe_direito])
     ]
     for lx, ly, lz in linhas:
         fig_3d.add_trace(go.Scatter3d(x=lx, y=ly, z=lz, mode='lines', line=dict(color='black', width=3), showlegend=False))
