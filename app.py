@@ -71,7 +71,8 @@ forma_global = total_forma_paredes + total_forma_lajes
 # --- INTERFACE POR ABAS ---
 tabs = st.tabs(["📊 Quantitativos Modulares", "🧱 Visualização das Paredes Maciças 3D"])
 
-with tabs:
+# CORREÇÃO DA SINTAXE DAS ABAS AQUI:
+with tabs[0]:
     st.subheader("📋 Painel de Controle de Concretagem Monolítica")
     st.dataframe(st.session_state.comodos, use_container_width=True)
     
@@ -88,34 +89,33 @@ with tabs:
         st.metric(label="Torres / Escoras de Laje", value=f"{escoras} unid")
         st.caption("Alinhadores de fôrma de parede inclusos na paginação técnica")
 
-with tabs:
+with tabs[1]:
     st.subheader(f"🧱 Maquete Estrutural Monolítica 3D: {comodo_foco['nome']}")
     st.write("Use o mouse para girar o modelo e verificar as paredes maciças integradas à laje.")
     
     fig_3d = go.Figure()
     
-    # Definição dos vértices tridimensionais (Criação de caixa sólida real com Mesh3d unificado)
-    # Vértices da base (z=0) e do topo (z=pe_direito) das 4 quinas
+    # Definição dos vértices das paredes (Caixa Sólida)
     x_v = [0, L, L, 0, 0, L, L, 0]
     y_v = [0, 0, C, C, 0, 0, C, C]
     z_v = [0, 0, 0, 0, pe_direito, pe_direito, pe_direito, pe_direito]
     
-    # Índices dos triângulos que fecham as faces das paredes
-    i_v = [0, 1, 2, 3, 0, 1, 1, 2, 2, 3, 3, 0]
-    j_v = [1, 2, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4]
-    k_v = [4, 5, 6, 7, 5, 4, 6, 5, 7, 6, 4, 7]
+    # Triângulos que fecham as faces verticais das paredes
+    i_v = [0, 0, 1, 1, 2, 2, 3, 3]
+    j_v = [1, 4, 2, 5, 3, 6, 0, 7]
+    k_v = [4, 5, 5, 6, 6, 7, 7, 4]
     
     # Desenha as paredes de concreto fechadas
     fig_3d.add_trace(go.Mesh3d(
         x=x_v, y=y_v, z=z_v,
         i=i_v, j=j_v, k=k_v,
-        color='rgb(120, 125, 130)', # Cor de concreto industrial
+        color='rgb(120, 125, 130)',
         opacity=0.90,
         flatshading=True,
         name="Paredes de Concreto"
     ))
     
-    # Desenha a laje superior como um plano volumétrico destacado
+    # Desenha a laje superior
     fig_3d.add_trace(go.Mesh3d(
         x=[0, L, L, 0], y=[0, 0, C, C], 
         z=[pe_direito, pe_direito, pe_direito, pe_direito],
@@ -124,10 +124,10 @@ with tabs:
         name="Laje Maciça"
     ))
     
-    # Desenha linhas de contorno (Arestas pretas para dar contraste e definição)
+    # Linhas de contorno estrutural
     linhas = [
-        ([0, L, L, 0, 0], [0, 0, C, C, 0], [0, 0, 0, 0, 0]), # Base
-        ([0, L, L, 0, 0], [0, 0, C, C, 0], [pe_direito, pe_direito, pe_direito, pe_direito, pe_direito]), # Topo
+        ([0, L, L, 0, 0], [0, 0, C, C, 0], [0, 0, 0, 0, 0]), 
+        ([0, L, L, 0, 0], [0, 0, C, C, 0], [pe_direito, pe_direito, pe_direito, pe_direito, pe_direito]), 
         ([0, 0], [0, 0], [0, pe_direito]),
         ([L, L], [0, 0], [0, pe_direito]),
         ([L, L], [C, C], [0, pe_direito]),
@@ -139,7 +139,6 @@ with tabs:
             line=dict(color='black', width=3), showlegend=False
         ))
 
-    # Ajustes finais do cenário
     fig_3d.update_layout(
         scene=dict(
             xaxis=dict(title='Largura (m)', range=[-0.5, L+1], backgroundcolor="rgb(30, 30, 30)", gridcolor="gray"),
