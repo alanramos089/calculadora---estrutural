@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 
 # Configuração da página web
 st.set_page_config(page_title="Calculadora Concreto Modular", layout="wide")
-st.title("🏗️ Sistema Construtivo: Concreto Modular Armado Monolítico v3.5")
+st.title("🏗️ Sistema Construtivo: Concreto Modular Armado Monolítico v3.6")
 st.write("Cálculo integrado de fôrmas e cubagem para paredes e lajes concretadas simultaneamente.")
 
 # Inicializa a lista de cômodos na sessão
@@ -55,24 +55,14 @@ C = comodo_foco["comprimento"]
 for c in st.session_state.comodos:
     w = c["largura"]
     h = c["comprimento"]
-    
-    # Área de eixo da parede para cálculo de volume
     perimetro_centro = 2 * ((w + espessura_parede) + (h + espessura_parede))
-    
-    # Volume de concreto das paredes cheias
     vol_parede = perimetro_centro * espessura_parede * pe_direito
     total_concreto_paredes += vol_parede
-    
-    # Volume da laje maciça
     vol_laje = (w * h) * espessura_laje
     total_concreto_lajes += vol_laje
-    
-    # Fôrmas das paredes (Face Interna + Face Externa)
     forma_interna = 2 * (w + h) * pe_direito
     forma_externa = 2 * ((w + 2*espessura_parede) + (h + 2*espessura_parede)) * pe_direito
     total_forma_paredes += (forma_interna + forma_externa)
-    
-    # Fôrma de fundo de laje
     total_forma_lajes += (w * h)
 
 concreto_global = total_concreto_paredes + total_concreto_lajes
@@ -81,7 +71,7 @@ forma_global = total_forma_paredes + total_forma_lajes
 # --- INTERFACE POR ABAS ---
 tabs = st.tabs(["📊 Quantitativos Modulares", "🧱 Visualização das Paredes Maciças 3D"])
 
-with tabs[0]:
+with tabs:
     st.subheader("📋 Painel de Controle de Concretagem Monolítica")
     st.dataframe(st.session_state.comodos, use_container_width=True)
     
@@ -95,35 +85,70 @@ with tabs[0]:
         st.caption(f"Paredes (Dupla Face): {total_forma_paredes:.2f}m² | Fundo de Laje: {total_forma_lajes:.2f}m²")
     with col3:
         escoras = int(np.ceil(total_forma_lajes * 1.2))
-        st.metric(label="Torres / Esccoras de Laje", value=f"{escoras} unid")
+        st.metric(label="Torres / Escoras de Laje", value=f"{escoras} unid")
         st.caption("Alinhadores de fôrma de parede inclusos na paginação técnica")
 
-with tabs[1]:
-    st.subheader(f"🧱 Representação Monolítica 3D: {comodo_foco['nome']}")
-    st.write("Observe a estrutura de paredes cheias e laje integradas em um único elemento estrutural.")
+with tabs:
+    st.subheader(f"🧱 Maquete Estrutural Monolítica 3D: {comodo_foco['nome']}")
+    st.write("Use o mouse para girar o modelo e verificar as paredes maciças integradas à laje.")
     
     fig_3d = go.Figure()
     
-    # Desenhar as 4 paredes como painéis sólidos em 3D usando Mesh3d
-    # Parede 1 (Frente)
-    fig_3d.add_trace(go.Mesh3d(x=[0, L, L, 0], y=[0, 0, 0, 0], z=[0, 0, pe_direito, pe_direito], color='gray', opacity=0.85, name="Parede"))
-    # Parede 2 (Fundo)
-    fig_3d.add_trace(go.Mesh3d(x=[0, L, L, 0], y=[C, C, C, C], z=[0, 0, pe_direito, pe_direito], color='gray', opacity=0.85, name="Parede"))
-    # Parede 3 (Esquerda)
-    fig_3d.add_trace(go.Mesh3d(x=[0, 0, 0, 0], y=[0, C, C, 0], z=[0, 0, pe_direito, pe_direito], color='gray', opacity=0.85, name="Parede"))
-    # Parede 4 (Direita)
-    fig_3d.add_trace(go.Mesh3d(x=[L, L, L, L], y=[0, C, C, 0], z=[0, 0, pe_direito, pe_direito], color='gray', opacity=0.85, name="Parede"))
+    # Definição dos vértices tridimensionais (Criação de caixa sólida real com Mesh3d unificado)
+    # Vértices da base (z=0) e do topo (z=pe_direito) das 4 quinas
+    x_v = [0, L, L, 0, 0, L, L, 0]
+    y_v = [0, 0, C, C, 0, 0, C, C]
+    z_v = [0, 0, 0, 0, pe_direito, pe_direito, pe_direito, pe_direito]
     
-    # Desenhar Laje de Cobertura
-    fig_3d.add_trace(go.Mesh3d(x=[0, L, L, 0], y=[0, 0, C, C], z=[pe_direito, pe_direito, pe_direito, pe_direito], color='darkgray', opacity=0.9, name="Laje"))
+    # Índices dos triângulos que fecham as faces das paredes
+    i_v = [0, 1, 2, 3, 0, 1, 1, 2, 2, 3, 3, 0]
+    j_v = [1, 2, 3, 0, 4, 5, 5, 6, 6, 7, 7, 4]
+    k_v = [4, 5, 6, 7, 5, 4, 6, 5, 7, 6, 4, 7]
     
+    # Desenha as paredes de concreto fechadas
+    fig_3d.add_trace(go.Mesh3d(
+        x=x_v, y=y_v, z=z_v,
+        i=i_v, j=j_v, k=k_v,
+        color='rgb(120, 125, 130)', # Cor de concreto industrial
+        opacity=0.90,
+        flatshading=True,
+        name="Paredes de Concreto"
+    ))
+    
+    # Desenha a laje superior como um plano volumétrico destacado
+    fig_3d.add_trace(go.Mesh3d(
+        x=[0, L, L, 0], y=[0, 0, C, C], 
+        z=[pe_direito, pe_direito, pe_direito, pe_direito],
+        color='rgb(160, 165, 170)', 
+        opacity=0.95,
+        name="Laje Maciça"
+    ))
+    
+    # Desenha linhas de contorno (Arestas pretas para dar contraste e definição)
+    linhas = [
+        ([0, L, L, 0, 0], [0, 0, C, C, 0], [0, 0, 0, 0, 0]), # Base
+        ([0, L, L, 0, 0], [0, 0, C, C, 0], [pe_direito, pe_direito, pe_direito, pe_direito, pe_direito]), # Topo
+        ([0, 0], [0, 0], [0, pe_direito]),
+        ([L, L], [0, 0], [0, pe_direito]),
+        ([L, L], [C, C], [0, pe_direito]),
+        ([0, 0], [C, C], [0, pe_direito])
+    ]
+    for lx, ly, lz in linhas:
+        fig_3d.add_trace(go.Scatter3d(
+            x=lx, y=ly, z=lz, mode='lines', 
+            line=dict(color='black', width=3), showlegend=False
+        ))
+
+    # Ajustes finais do cenário
     fig_3d.update_layout(
         scene=dict(
-            xaxis=dict(title='Largura (m)', range=[-0.2, L+0.5]),
-            yaxis=dict(title='Comprimento (m)', range=[-0.2, C+0.5]),
-            zaxis=dict(title='Altura Parede (m)', range=[0, pe_direito+0.5]),
+            xaxis=dict(title='Largura (m)', range=[-0.5, L+1], backgroundcolor="rgb(30, 30, 30)", gridcolor="gray"),
+            yaxis=dict(title='Comprimento (m)', range=[-0.5, C+1], backgroundcolor="rgb(30, 30, 30)", gridcolor="gray"),
+            zaxis=dict(title='Altura (m)', range=[0, pe_direito+0.8], backgroundcolor="rgb(30, 30, 30)", gridcolor="gray"),
             aspectmode='data'
         ),
-        margin=dict(l=0, r=0, b=0, t=0), showlegend=False, height=550
+        margin=dict(l=0, r=0, b=0, t=0),
+        height=600,
+        showlegend=False
     )
     st.plotly_chart(fig_3d, use_container_width=True)
