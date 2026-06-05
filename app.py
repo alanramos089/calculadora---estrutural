@@ -4,8 +4,8 @@ import plotly.graph_objects as go
 
 # Configuração da página web
 st.set_page_config(page_title="Calculadora Concreto Modular", layout="wide")
-st.title("🏗️ Sistema Construtivo: Concreto Modular Armado Monolítico v3.9")
-st.write("Cálculo integrado com gerenciamento completo de cômodos e maquete 3D com rotação automatizada.")
+st.title("🏗️ Sistema Construtivo: Concreto Modular Armado Monolítico v4.0")
+st.write("Cálculo integrado com gerenciamento completo de cômodos e maquete estrutural 3D.")
 
 # Inicializa a lista de cômodos na sessão se não existir
 if 'comodos' not in st.session_state:
@@ -51,7 +51,7 @@ if st.session_state.comodos:
     comodo_para_deletar = st.sidebar.selectbox("Selecione qual deseja remover", opcoes_exclusao)
     
     if st.sidebar.button("❌ Excluir Cômodo Selecionado"):
-        idx_deletar = int(comodo_para_deletar.split(" - ")[0])
+        idx_deletar = int(comodo_para_deletar.split(" - "))
         st.session_state.comodos.pop(idx_deletar)
         st.toast("Cômodo removido com sucesso!")
         st.rerun()
@@ -63,6 +63,11 @@ if st.sidebar.button("🧹 Limpar Toda a Obra"):
 if not st.session_state.comodos:
     st.warning("Adicione um cômodo na barra lateral para iniciar o processamento.")
     st.stop()
+
+# --- CONTROLE DE ROTAÇÃO DA CÂMERA (NATIVO E SEGURO) ---
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🎥 Controle da Câmera 3D")
+angulo_visao = st.sidebar.slider("Girar Maquete (Graus)", min_value=0, max_value=360, value=45, step=15)
 
 # --- CÁLCULOS VOLUMÉTRICOS ---
 total_concreto_paredes = 0.0
@@ -105,11 +110,10 @@ for c in st.session_state.comodos:
 concreto_global = total_concreto_paredes + total_concreto_lajes
 forma_global = total_forma_paredes + total_forma_lajes
 
-# --- INTERFACE POR ABAS CORRIGIDA ---
+# --- INTERFACE POR ABAS ---
 tabs = st.tabs(["📊 Quantitativos Realistas", "🧱 Maquete 3D Prédio/Cômodo"])
 
-# ABA 0: QUANTITATIVOS
-with tabs[0]:
+with tabs:
     st.subheader("📋 Painel Construtivo (Paredes de Concreto)")
     st.dataframe(st.session_state.comodos, use_container_width=True)
     
@@ -126,80 +130,60 @@ with tabs[0]:
         st.metric(label="Gabaritos / Kit Vão de Portas", value=f"{total_portas} jgs")
         st.caption(f"Necessário separar {total_portas} caixilhos estruturais para travar a concretagem")
 
-# ABA 1: MAQUETE 3D
-with tabs[1]:
+with tabs:
     st.subheader(f"🧱 Paredes Sólidas Verticais Prontas: {comodo_foco['nome']}")
-    st.write("Utilize os controles integrados no gráfico abaixo para rotacionar em 360° automaticamente.")
+    st.write("Mova o controle de câmera na barra lateral para rotacionar a maquete de concreto.")
     
     fig_3d = go.Figure()
     
+    # Coordenadas dos vértices
     x_v = [0, L, L, 0,  0, L, L, 0]
     y_v = [0, 0, C, C,  0, 0, C, C]
     z_v = [0, 0, 0, 0,  pe_direito, pe_direito, pe_direito, pe_direito]
     
-    i_v = [0, 0, 0, 1, 1, 2, 2, 3, 3, 0]
-    j_v = [1, 4, 5, 2, 5, 6, 3, 7, 0, 4]
-    k_v = [4, 5, 1, 5, 6, 3, 7, 2, 4, 7]
+    # Triângulos das faces
+    i_v =
+    j_v =
+    k_v =
     
+    # Renderização estável das paredes de concreto
     fig_3d.add_trace(go.Mesh3d(
         x=x_v, y=y_v, z=z_v, i=i_v, j=j_v, k=k_v,
         color='rgb(135, 140, 145)', opacity=0.95, flatshading=True, name="Paredes"
     ))
     
+    # Laje superior
     fig_3d.add_trace(go.Mesh3d(
         x=[0, L, L, 0], y=[0, 0, C, C], z=[pe_direito, pe_direito, pe_direito, pe_direito],
         color='rgb(165, 170, 175)', opacity=0.9, name="Laje"
     ))
     
+    # Contornos pretos estruturais
     linhas = [
-        ([0, L, L, 0, 0], [0, 0, C, C, 0], [0, 0, 0, 0, 0]),
+        ([0, L, L, 0, 0], [0, 0, C, C, 0],),
         ([0, L, L, 0, 0], [0, 0, C, C, 0], [pe_direito, pe_direito, pe_direito, pe_direito, pe_direito]),
-        ([0, 0], [0, 0], [0, pe_direito]),
-        ([L, L], [0, 0], [0, pe_direito]),
+        (,, [0, pe_direito]),
+        ([L, L],, [0, pe_direito]),
         ([L, L], [C, C], [0, pe_direito]),
-        ([0, 0], [C, C], [0, pe_direito])
+        (, [C, C], [0, pe_direito])
     ]
     for lx, ly, lz in linhas:
         fig_3d.add_trace(go.Scatter3d(x=lx, y=ly, z=lz, mode='lines', line=dict(color='black', width=4), showlegend=False))
 
-    # --- ANIMAÇÃO GIRO 360° ---
-    frames = []
-    lista_angulos = np.linspace(0, 2 * np.pi, 60)
-    
-    centro_x = L / 2
-    centro_y = C / 2
-    raio_camera = max(L, C) * 2
-    
-    for angulo in lista_angulos:
-        cam_x = centro_x + raio_camera * np.cos(angulo)
-        cam_y = centro_y + raio_camera * np.sin(angulo)
-        
-        frames.append(go.Frame(layout=dict(scene=dict(camera=dict(
-            eye=dict(x=cam_x/raio_camera*1.8, y=cam_y/raio_camera*1.8, z=1.2),
-            center=dict(x=0, y=0, z=-0.1)
-        )))))
-        
-    fig_3d.frames = frames
-
-    fig_3d.update_layout(
-        updatemenus=[
-            dict(
-                type="buttons",
-                showactive=False,
-                buttons=[
-                    dict(label="▶️ ATIVAR GIRO 360°", method="animate", args=[None, dict(frame=dict(duration=50, redraw=True), fromcurrent=True, mode="immediate")]),
-                    dict(label="⏸️ PAUSAR", method="animate", args=[[None], dict(frame=dict(duration=0, redraw=False), mode="immediate")])
-                ],
-                direction="left", padding={"r": 10, "t": 10}, x=0.01, y=0.99
-            )
-        ]
-    )
+    # Conversão do ângulo do controle lateral para radianos para guiar os eixos da câmera
+    rad = np.radians(angulo_visao)
+    distancia = 2.0
+    cam_x = distancia * np.cos(rad)
+    cam_y = distancia * np.sin(rad)
 
     fig_3d.update_layout(
         scene=dict(
             xaxis=dict(title='Largura (m)', range=[-0.5, L+1], backgroundcolor="rgb(35, 35, 35)", gridcolor="gray"),
             yaxis=dict(title='Comprimento (m)', range=[-0.5, C+1], backgroundcolor="rgb(35, 35, 35)", gridcolor="gray"),
             zaxis=dict(title='Altura (m)', range=[0, pe_direito+0.5], backgroundcolor="rgb(35, 35, 35)", gridcolor="gray"),
+            camera=dict(
+                eye=dict(x=cam_x, y=cam_y, z=1.2)
+            ),
             aspectmode='data'
         ),
         margin=dict(l=0, r=0, b=0, t=0), height=600, showlegend=False
