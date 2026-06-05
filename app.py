@@ -1,100 +1,102 @@
 import streamlit as st
 import numpy as np
 import plotly.graph_objects as go
+from streamlit_drawable_canvas import st_canvas
 
 # Configuração da página web
-st.set_page_config(page_title="Calculadora Concreto Modular", layout="wide")
-st.title("🏗️ Sistema Construtivo: Concreto Modular Armado Monolítico v7.0")
-st.write("Projeto Automatizado: Insira a planta baixa por coordenadas e o sistema ergue o modelo 3D estrutural na hora.")
-
-# Inicialização padrão com uma Sala e um Quarto posicionados lado a lado (Planta Livre)
-if 'comodos' not in st.session_state:
-    st.session_state.comodos = [
-        {"nome": "Sala Principal", "largura": 3.20, "comprimento": 4.00, "pos_x": 0.0, "pos_y": 0.0, "portas": 1, "janelas": 1},
-        {"nome": "Dormitório 1", "largura": 3.00, "comprimento": 3.00, "pos_x": 3.20, "pos_y": 0.0, "portas": 1, "janelas": 1}
-    ]
+st.set_page_config(page_title="Configurador Concreto Modular", layout="wide")
+st.title("🏗️ Sistema Construtivo: Concreto Modular Armado Monolítico v8.0")
+st.write("Mesa de Desenho Interativa: Desenhe os cômodos com o mouse no grid para erguer a estrutura em 3D.")
 
 # --- BARRA LATERAL ---
-st.sidebar.header("⚙️ Parâmetros Globais da Edificação")
+st.sidebar.header("⚙️ Parâmetros Globais do Molde")
+espessura_parede = st.sidebar.slider("Espessura da Parede Maciça (m)", min_value=0.08, max_value=0.20, value=0.10, step=0.01)
+pe_direito = st.sidebar.slider("Altura do Pé-Direito / Paredes (m)", min_value=2.40, max_value=4.00, value=2.80, step=0.10)
+espessura_laje = st.sidebar.slider("Espessura da Laje Superior (m)", min_value=0.08, max_value=0.20, value=0.10, step=0.01)
 
-with st.sidebar.form("configuracoes_obra_form"):
-    espessura_parede = st.sidebar.slider("Espessura da Parede Maciça (m)", min_value=0.08, max_value=0.20, value=0.10, step=0.01)
-    pe_direito = st.sidebar.slider("Altura da Parede / Pé-Direito (m)", min_value=2.40, max_value=4.00, value=2.80, step=0.10)
-    espessura_laje = st.sidebar.slider("Espessura da Laje Superior (m)", min_value=0.08, max_value=0.20, value=0.10, step=0.01)
-    
-    st.markdown("---")
-    st.markdown("### 🚪 Locação do Cômodo na Planta Baixa")
-    nome_c = st.text_input("Nome do Ambiente", value="Cozinha")
-    larg_c = st.number_input("Largura do Cômodo (Eixo X) (m)", min_value=1.0, max_value=15.0, value=3.20, step=0.1)
-    comp_c = st.number_input("Comprimento do Cômodo (Eixo Y) (m)", min_value=1.0, max_value=15.0, value=3.50, step=0.1)
-    
-    st.info("💡 Escolha onde este cômodo vai iniciar em relação ao ponto zero do terreno:")
-    start_x = st.number_input("Distância do Canto Esquerdo (X inicial)", value=0.0, step=0.1)
-    start_y = st.number_input("Distância do Canto Inferior (Y inicial)", value=4.0, step=0.1)
-    
-    portas_c = st.number_input("Quantidade de Portas", min_value=0, max_value=4, value=1, step=1)
-    janelas_c = st.number_input("Quantidade de Janelas", min_value=0, max_value=4, value=1, step=1)
-    
-    botao_calcular = st.form_submit_button("🧱 LANÇAR CÔMODO NA PLANTA")
+st.sidebar.markdown("---")
+st.sidebar.info("💡 **Como usar a Mesa de Desenho:**\n1. Selecione a ferramenta de Retângulo (ícone quadrado na barra do desenho).\n2. Clique e arraste no grid para desenhar um cômodo.\n3. Cada quadrado grande do grid equivale a **1,0 metro** na obra.\n4. Mude para a aba do 3D para inspecionar o modelo erguido!")
 
-if botao_calcular:
-    st.session_state.comodos.append({
-        "nome": nome_c, "largura": float(larg_c), "comprimento": float(comp_c), 
-        "pos_x": float(start_x), "pos_y": float(start_y),
-        "portas": int(portas_c), "janelas": int(janelas_c)
-    })
-    st.rerun()
+# --- INTERFACE POR ABAS ---
+tab_desenho, tab_materiais, tab_3d = st.tabs(["✏️ Mesa de Desenho da Planta", "📊 Lista de Materiais Calculada", "🧱 Projeto Estrutural 3D"])
 
-# --- GERENCIADOR DE EXCLUSÃO CORRIGIDO CONTRA KEYERROR ---
-if st.session_state.comodos:
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("### 🗑️ Modificar Planta Baixa")
+# Fator de conversão: 40 pixels no canvas = 1.0 metro na vida real
+PIXELS_POR_METRO = 40.0
+
+# Processamento geométrico dos retângulos desenhados pelo usuário
+comodos_detectados = []
+
+with tab_desenho:
+    st.subheader("✏️ Desenhe a Planta Baixa do Imóvel")
+    st.caption("Use o mouse para traçar os ambientes sobre a grade modular. Os materiais e o 3D serão gerados na hora.")
     
-    # Uso seguro do .get() para evitar o erro se o cache antigo persistir
-    opcoes_exclusao = [
-        f"{i} - {c['nome']} (X:{c.get('pos_x', 0.0)} | Y:{c.get('pos_y', 0.0)})" 
-        for i, c in enumerate(st.session_state.comodos)
-    ]
-    comodo_para_deletar = st.sidebar.selectbox("Selecione qual deseja remover", opcoes_exclusao)
-    
-    if st.sidebar.button("❌ Remover do Projeto"):
-        idx_deletar = int(comodo_para_deletar.split(" - ")[0])
-        st.session_state.comodos.pop(idx_deletar)
-        st.toast("Módulo removido da planta!")
-        st.rerun()
+    # Renderização da Mesa de Desenho Interativa (Canvas com Grid de fundo)
+    canvas_result = st_canvas(
+        fill_color="rgba(135, 140, 145, 0.4)",  # Cor translúcida do concreto moldado
+        stroke_width=3,
+        stroke_color="#000000",
+        background_color="#262730",
+        update_streamlit=True,
+        height=400,
+        width=800,
+        drawing_mode="rect",  # Trava o mouse para desenhar apenas retângulos perfeitos (cômodos)
+        display_toolbar=True,
+        key="mesa_desenho_modular",
+    )
 
-if st.sidebar.button("🧹 Resetar Terreno / Planta"):
-    st.session_state.comodos = []
-    st.rerun()
+    # Tratamento dos dados gerados pelo mouse
+    if canvas_result.json_data is not None:
+        objects = canvas_result.json_data["objects"]
+        for idx, obj in enumerate(objects):
+            if obj["type"] == "rect":
+                # Captura os dados em pixels do Canvas
+                left = obj["left"]
+                top = obj["top"]
+                width = obj["width"]
+                height = obj["height"]
+                
+                # Converte pixels para metros reais da engenharia
+                px_real = left / PIXELS_POR_METRO
+                py_real = top / PIXELS_POR_METRO
+                largura_real = width / PIXELS_POR_METRO
+                comprimento_real = height / PIXELS_POR_METRO
+                
+                comodos_detectados.append({
+                    "id": idx + 1,
+                    "nome": f"Ambiente {idx + 1}",
+                    "largura": largura_real,
+                    "comprimento": comprimento_real,
+                    "pos_x": px_real,
+                    "pos_y": py_real
+                })
 
-if not st.session_state.comodos:
-    st.warning("Adicione o primeiro cômodo para mapear a planta baixa do imóvel.")
+    if comodos_detectados:
+        st.success(f"✔️ {len(comodos_detectados)} ambiente(s) mapeado(s) com sucesso pelo mouse!")
+    else:
+        st.warning("⚠️ Nenhum cômodo desenhado ainda. Use o mouse para traçar um retângulo no quadro acima.")
+
+# Se não desenhou nada, interrompe para evitar erros matemáticos nas outras abas
+if not comodos_detectados:
     st.stop()
 
-# --- CÁLCULOS VOLUMÉTRICOS ACUMULADOS ---
+# --- CÁLCULOS VOLUMÉTRICOS BASEADOS NO DESENHO DO MOUSE ---
 total_concreto_paredes = 0.0
 total_concreto_lajes = 0.0
 total_forma_paredes = 0.0
 total_forma_lajes = 0.0
 total_telas_aço = 0.0
-total_portas = 0
-total_janelas = 0
 
+# Assumindo uma média de 1 porta e 1 janela padrão por ambiente desenhado
 area_porta_gabarito = 0.80 * 2.10  
 area_janela_gabarito = 1.20 * 1.00 
 
-for c in st.session_state.comodos:
+for c in comodos_detectados:
     w = c["largura"]
     h = c["comprimento"]
-    n_portas = c.get("portas", 0)
-    n_janelas = c.get("janelas", 0)
-    
-    total_portas += n_portas
-    total_janelas += n_janelas
     
     perimetro_centro = 2 * ((w + espessura_parede) + (h + espessura_parede))
     area_parede_bruta = perimetro_centro * pe_direito
-    area_descontos = (n_portas * area_porta_gabarito) + (n_janelas * area_janela_gabarito)
+    area_descontos = area_porta_gabarito + area_janela_gabarito
     area_parede_liquida = area_parede_bruta - area_descontos
     
     total_concreto_paredes += (area_parede_liquida * espessura_parede)
@@ -110,44 +112,41 @@ for c in st.session_state.comodos:
 concreto_global = total_concreto_paredes + total_concreto_lajes
 forma_global = total_forma_paredes + total_forma_lajes
 
-# --- INTERFACE POR ABAS ---
-tab0, tab1 = st.tabs(["📊 Lista de Materiais da Planta", "🧱 Planta Baixa Transposta em 3D"])
-
-with tab0:
-    st.subheader("📋 Configuração Dimensional dos Módulos")
-    st.dataframe(st.session_state.comodos, use_container_width=True)
+# --- ABA 1: LISTA DE MATERIAIS ---
+with tab_materials:
+    st.subheader("📋 Lista de Materiais Consolidada do Desenho")
+    st.dataframe(comodos_detectados, use_container_width=True)
     
-    st.subheader("🛒 Insumos Totais Calculados da Planta")
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric(label="Volume Geral de Concreto Usinado", value=f"{concreto_global:.2f} m³")
         st.caption(f"Paredes: {total_concreto_paredes:.2f}m³ | Lajes: {total_concreto_lajes:.2f}m³")
     with col2:
         st.metric(label="Área de Fôrma Modular (Dupla Face)", value=f"{forma_global:.2f} m²")
-        st.caption(f"Calculado com desconto de vãos de esquadrias")
+        st.caption("Calculado automaticamente com desconto de vãos padrão")
     with col3:
         st.metric(label="Área Metálica de Tela Soldada Q092", value=f"{total_telas_aço:.2f} m²")
-        st.caption("Armadura centralizada nas paredes monolíticas")
+        st.caption("Armadura de aço centralizada nas paredes maciças")
 
-with tab1:
-    st.subheader("🧱 Maquete Tridimensional da Planta Desenhada")
-    st.write("Abaixo, os ambientes ganham altura de parede automaticamente baseados na locação da planta.")
+# --- ABA 2: MAQUETE 3D BASEADA NO CANVAS ---
+with tab_3d:
+    st.subheader("🧱 Planta Baixa Transposta em 3D")
+    st.write("Gire o modelo abaixo para analisar os módulos nas posições exatas em que foram desenhados com o mouse.")
     
     fig_3d = go.Figure()
-    
     max_x, max_y = 0.0, 0.0
     
-    for c in st.session_state.comodos:
+    for c in comodos_detectados:
         w = c["largura"]
         h = c["comprimento"]
-        px = c.get("pos_x", 0.0)
-        py = c.get("pos_y", 0.0)
+        px = c["pos_x"]
+        py = c["pos_y"]
         nome = c["nome"]
         
         if (px + w) > max_x: max_x = (px + w)
         if (py + h) > max_y: max_y = (py + h)
             
-        # 1. Paredes do Módulo
+        # 1. Paredes de Concreto Monolítico
         fig_3d.add_trace(go.Mesh3d(
             x=[px, px+w, px+w, px, px, px+w, px+w, px],
             y=[py, py, py+h, py+h, py, py, py+h, py+h],
@@ -155,7 +154,7 @@ with tab1:
             color='rgb(140, 145, 150)', opacity=0.65, flatshading=True, name=nome
         ))
         
-        # 2. Laje Superior com Beiral
+        # 2. Laje Superior com Beiral Técnico (25cm)
         b = 0.25  
         fig_3d.add_trace(go.Mesh3d(
             x=[px-b, px+w+b, px+w+b, px-b],
@@ -164,7 +163,7 @@ with tab1:
             color='rgb(175, 180, 185)', opacity=0.85, name=f"Laje {nome}"
         ))
         
-        # 3. Linhas de contorno
+        # 3. Contornos pretos estruturais
         linhas_c = [
             ([px, px+w, px+w, px, px], [py, py, py+h, py+h, py], [pe_direito]*5),
             ([px, px+w, px+w, px, px], [py, py, py+h, py+h, py], [0]*5),
@@ -176,19 +175,19 @@ with tab1:
         for lx, ly, lz in linhas_c:
             fig_3d.add_trace(go.Scatter3d(x=lx, y=ly, z=lz, mode='lines', line=dict(color='black', width=3), showlegend=False))
             
-        # 4. Texto identificador no topo
+        # 4. Texto Identificador do Ambiente
         fig_3d.add_trace(go.Scatter3d(
             x=[px + w/2], y=[py + h/2], z=[pe_direito + 0.3],
             mode="text", text=[nome], textfont=dict(color="cyan", size=11, family="Arial Black")
         ))
         
-        # 5. Cotas Individuais
+        # 5. Linhas de Cota Vermelhas Individuais
         fig_3d.add_trace(go.Scatter3d(x=[px + w/2], y=[py - 0.2], z=[0.05], mode="text", text=[f"{w:.2f}m"], textfont=dict(color="red", size=11)))
         fig_3d.add_trace(go.Scatter3d(x=[px + w + 0.2], y=[py + h/2], z=[0.05], mode="text", text=[f"{h:.2f}m"], textfont=dict(color="red", size=11)))
 
-    # Cotas Totais Laranja
-    fig_3d.add_trace(go.Scatter3d(x=[max_x/2], y=[-0.8], z=[0.1], mode="text", text=[f"LARGURA MÁXIMA DA PLANTA = {max_x:.2f} m"], textfont=dict(color="orange", size=13, family="Arial Black")))
-    fig_3d.add_trace(go.Scatter3d(x=[max_x + 0.8], y=[max_y/2], z=[0.1], mode="text", text=[f"COMPRIMENTO MÁXIMO DA PLANTA = {max_y:.2f} m"], textfont=dict(color="orange", size=13, family="Arial Black")))
+    # Cotas Globais da Edificação (Linhas Laranja)
+    fig_3d.add_trace(go.Scatter3d(x=[max_x/2], y=[-0.8], z=[0.1], mode="text", text=[f"LARGURA MÁXIMA DA CASA = {max_x:.2f} m"], textfont=dict(color="orange", size=13, family="Arial Black")))
+    fig_3d.add_trace(go.Scatter3d(x=[max_x + 0.8], y=[max_y/2], z=[0.1], mode="text", text=[f"COMPRIMENTO MÁXIMO DA CASA = {max_y:.2f} m"], textfont=dict(color="orange", size=13, family="Arial Black")))
 
     fig_3d.update_layout(
         dragmode='orbit',
