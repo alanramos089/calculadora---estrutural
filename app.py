@@ -100,10 +100,11 @@ for c in st.session_state.comodos:
 concreto_global = total_concreto_paredes + total_concreto_lajes
 forma_global = total_forma_paredes + total_forma_lajes
 
-# --- INTERFACE POR ABAS ---
+# --- INTERFACE POR ABAS COM INDEXAÇÃO ESTRETA ---
 tabs = st.tabs(["📊 Quantitativos Realistas", "🧱 Maquete 3D Prédio/Cômodo"])
 
-with tabs:
+# ABA 0: QUANTITATIVOS (INDEXADA CORRETAMENTE)
+with tabs[0]:
     st.subheader("📋 Painel Construtivo (Paredes de Concreto)")
     st.dataframe(st.session_state.comodos, use_container_width=True)
     
@@ -120,8 +121,8 @@ with tabs:
         st.metric(label="Gabaritos / Kit Vão de Portas", value=f"{total_portas} jgs")
         st.caption(f"Necessário separar {total_portas} caixilhos estruturais para travar a concretagem")
 
-with tabs:
-    # SOLUÇÃO DO PONTO 1: Menu de seleção dinâmica para o usuário escolher qual cômodo quer inspecionar no 3D
+# ABA 1: MAQUETE 3D (INDEXADA CORRETAMENTE)
+with tabs[1]:
     lista_nomes_comodos = [f"{i} - {c['nome']}" for i, c in enumerate(st.session_state.comodos)]
     comodo_selecionado_texto = st.selectbox("🔍 Selecione qual cômodo deseja visualizar no Projeto 3D:", lista_nomes_comodos)
     idx_foco = int(comodo_selecionado_texto.split(" - "))
@@ -140,9 +141,9 @@ with tabs:
     y_v = [0, 0, C, C,  0, 0, C, C]
     z_v = [0, 0, 0, 0,  pe_direito, pe_direito, pe_direito, pe_direito]
     
-    i_v = [0, 2, 0, 4, 5, 5, 1, 1, 2, 6, 3, 7]
-    j_v = [1, 3, 4, 7, 6, 7, 2, 5, 6, 7, 0, 4]
-    k_v = [2, 0, 5, 6, 2, 3, 5, 6, 7, 3, 4, 0]
+    i_v = [0, 0, 0, 1, 1, 2, 2, 3, 3, 0, 4, 5]
+    j_v = [1, 4, 3, 2, 5, 3, 6, 0, 7, 4, 5, 6]
+    k_v = [4, 5, 7, 5, 6, 6, 7, 7, 4, 1, 7, 7]
     
     # Desenha as paredes de concreto
     fig_3d.add_trace(go.Mesh3d(
@@ -150,7 +151,7 @@ with tabs:
         color='rgb(140, 145, 150)', opacity=0.95, flatshading=True, name="Paredes"
     ))
     
-    # Desenha a laje superior
+    # Desenha laje superior
     fig_3d.add_trace(go.Mesh3d(
         x=[0, L, L, 0], y=[0, 0, C, C], z=[pe_direito, pe_direito, pe_direito, pe_direito],
         color='rgb(170, 175, 180)', opacity=0.9, name="Laje"
@@ -168,8 +169,7 @@ with tabs:
     for lx, ly, lz in linhas:
         fig_3d.add_trace(go.Scatter3d(x=lx, y=ly, z=lz, mode='lines', line=dict(color='black', width=4), showlegend=False))
 
-    # SOLUÇÃO DO PONTO 2: DIAGRAMA DIMENSIONAL (Cotas de Engenharia no Espaço 3D)
-    # Adicionando textos flutuantes fixados nos pontos médios das arestas principais
+    # DIAGRAMA DIMENSIONAL (Cotas vermelhas em destaque no 3D)
     fig_3d.add_trace(go.Scatter3d(
         x=[L/2], y=[-0.2], z=[0.1],
         mode="text", text=[f"L = {L:.2f} m"],
