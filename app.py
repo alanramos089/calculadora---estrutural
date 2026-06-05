@@ -98,7 +98,7 @@ def vetor_carga_equivalente(q, L):
 
 K_global = np.zeros((6, 6))
 F_global = np.zeros(6)
-nos_elementos = [,(1,2)]
+nos_elementos = [(0, 1), (1, 2)]
 L_elemento = L_viga / 2 
 
 for el, nos in enumerate(nos_elementos):
