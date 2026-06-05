@@ -17,9 +17,9 @@ if 'comodos' not in st.session_state:
 st.sidebar.header("⚙️ Parâmetros Globais do Molde")
 
 with st.sidebar.form("configuracoes_obra_form"):
-    espessura_parede = st.sidebar.slider("Espessura da Parede Maciça (m)", min_value=0.08, max_value=0.20, value=0.10, step=0.01)
-    pe_direito = st.sidebar.slider("Altura da Parede / Pé-Direito (m)", min_value=2.40, max_value=4.00, value=2.80, step=0.10)
-    espessura_laje = st.sidebar.slider("Espessura da Laje Superior (m)", min_value=0.08, max_value=0.20, value=0.10, step=0.01)
+    espessura_parede = st.slider("Espessura da Parede Maciça (m)", min_value=0.08, max_value=0.20, value=0.10, step=0.01)
+    pe_direito = st.slider("Altura da Parede / Pé-Direito (m)", min_value=2.40, max_value=4.00, value=2.80, step=0.10)
+    espessura_laje = st.slider("Espessura da Laje Superior (m)", min_value=0.08, max_value=0.20, value=0.10, step=0.01)
     
     st.markdown("---")
     st.markdown("### 🚪 Adicionar Novo Cômodo")
@@ -48,7 +48,7 @@ if st.session_state.comodos:
     st.sidebar.markdown("### 🗑️ Gerenciar / Excluir Cômodo")
     
     opcoes_exclusao = [f"{i} - {c['nome']} ({c['largura']}x{c['comprimento']})" for i, c in enumerate(st.session_state.comodos)]
-    comodo_para_deletar = st.sidebar.selectbox("Selecione qual deseja remover", opcoes_exclusao)
+    comodo_para_deletar = st.sidebar.selectbox("Selecione qual deseja remover", opciones_exclusao)
     
     if st.sidebar.button("❌ Excluir Cômodo Selecionado"):
         idx_deletar = int(comodo_para_deletar.split(" - "))
@@ -63,11 +63,6 @@ if st.sidebar.button("🧹 Limpar Toda a Obra"):
 if not st.session_state.comodos:
     st.warning("Adicione um cômodo na barra lateral para iniciar o processamento.")
     st.stop()
-
-# --- CONTROLE DE ROTAÇÃO DA CÂMERA ---
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 🎥 Controle Inicial da Câmera")
-angulo_visao = st.sidebar.slider("Ângulo Inicial de Visão (Graus)", min_value=0, max_value=360, value=45, step=15)
 
 # --- CÁLCULOS VOLUMÉTRICOS ---
 total_concreto_paredes = 0.0
@@ -110,10 +105,10 @@ for c in st.session_state.comodos:
 concreto_global = total_concreto_paredes + total_concreto_lajes
 forma_global = total_forma_paredes + total_forma_lajes
 
-# --- INTERFACE POR ABAS ---
+# --- INTERFACE POR ABAS CORRIGIDA PARA ZERAR ERROS ---
 tabs = st.tabs(["📊 Quantitativos Realistas", "🧱 Maquete 3D Prédio/Cômodo"])
 
-with tabs:
+with tabs[0]:
     st.subheader("📋 Painel Construtivo (Paredes de Concreto)")
     st.dataframe(st.session_state.comodos, use_container_width=True)
     
@@ -130,35 +125,34 @@ with tabs:
         st.metric(label="Gabaritos / Kit Vão de Portas", value=f"{total_portas} jgs")
         st.caption(f"Necessário separar {total_portas} caixilhos estruturais para travar a concretagem")
 
-with tabs:
+with tabs[1]:
     st.subheader(f"🧱 Paredes Sólidas Verticais Prontas: {comodo_foco['nome']}")
-    st.write("Clique e arraste diretamente sobre o modelo abaixo para rotacionar livremente em qualquer direção.")
+    st.write("Clique e arraste com o mouse diretamente sobre o modelo abaixo para rotacionar livremente.")
     
     fig_3d = go.Figure()
     
-    # Coordenadas dos vértices
+    # Coordenadas estáveis das quinas verticais
     x_v = [0, L, L, 0,  0, L, L, 0]
     y_v = [0, 0, C, C,  0, 0, C, C]
     z_v = [0, 0, 0, 0,  pe_direito, pe_direito, pe_direito, pe_direito]
     
-    # Triângulos das faces
-    i_v = [0, 0, 1, 1, 2, 2, 3, 3, 0, 4, 1, 5]
-    j_v = [1, 4, 2, 5, 3, 6, 0, 7, 3, 7, 0, 4]
-    k_v = [4, 5, 5, 6, 6, 7, 7, 4, 7, 6, 4, 1]
+    i_v = [0, 0, 0, 1, 1, 2, 2, 3, 4, 4, 4, 5]
+    j_v = [1, 4, 3, 2, 5, 3, 6, 0, 5, 7, 6, 6]
+    k_v = [4, 5, 7, 5, 6, 6, 7, 7, 1, 0, 5, 2]
     
-    # Renderização das paredes de concreto
+    # Desenha as paredes monolíticas
     fig_3d.add_trace(go.Mesh3d(
         x=x_v, y=y_v, z=z_v, i=i_v, j=j_v, k=k_v,
-        color='rgb(140, 145, 150)', opacity=0.95, flatshading=True, name="Paredes"
+        color='rgb(135, 140, 145)', opacity=0.95, flatshading=True, name="Paredes"
     ))
     
-    # Laje superior
+    # Desenha o plano da laje
     fig_3d.add_trace(go.Mesh3d(
         x=[0, L, L, 0], y=[0, 0, C, C], z=[pe_direito, pe_direito, pe_direito, pe_direito],
-        color='rgb(170, 175, 180)', opacity=0.9, name="Laje"
+        color='rgb(165, 170, 175)', opacity=0.9, name="Laje"
     ))
     
-    # Contornos pretos estruturais
+    # Linhas pretas de quina estrutural
     linhas = [
         ([0, L, L, 0, 0], [0, 0, C, C, 0], [0, 0, 0, 0, 0]),
         ([0, L, L, 0, 0], [0, 0, C, C, 0], [pe_direito, pe_direito, pe_direito, pe_direito, pe_direito]),
@@ -170,24 +164,17 @@ with tabs:
     for lx, ly, lz in linhas:
         fig_3d.add_trace(go.Scatter3d(x=lx, y=ly, z=lz, mode='lines', line=dict(color='black', width=4), showlegend=False))
 
-    # Conversão do ângulo inicial para radianos
-    rad = np.radians(angulo_visao)
-    distancia = 2.0
-    cam_x = distancia * np.cos(rad)
-    cam_y = distancia * np.sin(rad)
-
     fig_3d.update_layout(
-        dragmode='orbit', # SOLUÇÃO DO PROBLEMA: Ativa a órbita livre por clique e arraste do mouse
+        dragmode='orbit', # Libera rotação com clique do mouse
         scene=dict(
             xaxis=dict(title='Largura (m)', range=[-0.5, L+1], backgroundcolor="rgb(35, 35, 35)", gridcolor="gray"),
             yaxis=dict(title='Comprimento (m)', range=[-0.5, C+1], backgroundcolor="rgb(35, 35, 35)", gridcolor="gray"),
             zaxis=dict(title='Altura (m)', range=[0, pe_direito+0.5], backgroundcolor="rgb(35, 35, 35)", gridcolor="gray"),
             camera=dict(
-                eye=dict(x=cam_x, y=cam_y, z=1.2)
+                eye=dict(x=1.5, y=1.5, z=1.2)
             ),
             aspectmode='data'
         ),
         margin=dict(l=0, r=0, b=0, t=0), height=600, showlegend=False
     )
-    st.sidebar.caption("💡 Dica: Além de usar o controle acima, você pode clicar diretamente sobre a maquete e arrastar para orbitar livremente.")
     st.plotly_chart(fig_3d, use_container_width=True)
