@@ -19,11 +19,11 @@ st.sidebar.header("⚙️ Parâmetros Globais da Edificação")
 
 with st.sidebar.form("configuracoes_obra_form"):
     espessura_parede = st.sidebar.slider("Espessura da Parede Maciça (m)", min_value=0.08, max_value=0.20, value=0.10, step=0.01)
-    pe_direito = st.sidebar.slider("Altura do Pé-Direito / Paredes (m)", min_value=2.40, max_value=4.00, value=2.80, step=0.10)
+    pe_direito = st.sidebar.slider("Altura da Parede / Pé-Direito (m)", min_value=2.40, max_value=4.00, value=2.80, step=0.10)
     espessura_laje = st.sidebar.slider("Espessura da Laje Superior (m)", min_value=0.08, max_value=0.20, value=0.10, step=0.01)
     
     st.markdown("---")
-    st.markdown("### 🗺️ Locação do Cômodo na Planta Baixa")
+    st.markdown("### 🚪 Locação do Cômodo na Planta Baixa")
     nome_c = st.text_input("Nome do Ambiente", value="Cozinha")
     larg_c = st.number_input("Largura do Cômodo (Eixo X) (m)", min_value=1.0, max_value=15.0, value=3.20, step=0.1)
     comp_c = st.number_input("Comprimento do Cômodo (Eixo Y) (m)", min_value=1.0, max_value=15.0, value=3.50, step=0.1)
@@ -45,15 +45,20 @@ if botao_calcular:
     })
     st.rerun()
 
-# --- GERENCIADOR DE EXCLUSÃO ---
+# --- GERENCIADOR DE EXCLUSÃO CORRIGIDO CONTRA KEYERROR ---
 if st.session_state.comodos:
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 🗑️ Modificar Planta Baixa")
-    opcoes_exclusao = [f"{i} - {c['nome']} (X:{c['pos_x']} | Y:{c['pos_y']})" for i, c in enumerate(st.session_state.comodos)]
+    
+    # Uso seguro do .get() para evitar o erro se o cache antigo persistir
+    opcoes_exclusao = [
+        f"{i} - {c['nome']} (X:{c.get('pos_x', 0.0)} | Y:{c.get('pos_y', 0.0)})" 
+        for i, c in enumerate(st.session_state.comodos)
+    ]
     comodo_para_deletar = st.sidebar.selectbox("Selecione qual deseja remover", opcoes_exclusao)
     
     if st.sidebar.button("❌ Remover do Projeto"):
-        idx_deletar = int(comodo_para_deletar.split(" - "))
+        idx_deletar = int(comodo_para_deletar.split(" - ")[0])
         st.session_state.comodos.pop(idx_deletar)
         st.toast("Módulo removido da planta!")
         st.rerun()
@@ -135,8 +140,8 @@ with tab1:
     for c in st.session_state.comodos:
         w = c["largura"]
         h = c["comprimento"]
-        px = c["pos_x"]
-        py = c["pos_y"]
+        px = c.get("pos_x", 0.0)
+        py = c.get("pos_y", 0.0)
         nome = c["nome"]
         
         if (px + w) > max_x: max_x = (px + w)
@@ -159,7 +164,7 @@ with tab1:
             color='rgb(175, 180, 185)', opacity=0.85, name=f"Laje {nome}"
         ))
         
-        # 3. LINHAS DE CONTORNO CORRIGIDAS SEM ESPAÇOS EM BRANCO
+        # 3. Linhas de contorno
         linhas_c = [
             ([px, px+w, px+w, px, px], [py, py, py+h, py+h, py], [pe_direito]*5),
             ([px, px+w, px+w, px, px], [py, py, py+h, py+h, py], [0]*5),
