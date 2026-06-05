@@ -42,17 +42,16 @@ if botao_calcular:
     })
     st.rerun()
 
-# --- NOVA SEÇÃO: EXCLUSÃO INDIVIDUAL DE CÔMODOS ---
+# --- NOVA SEÇÃO: EXCLUSÃO INDIVIDUAL DE CÔMODOS (CORRIGIDA) ---
 if st.session_state.comodos:
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 🗑️ Gerenciar / Excluir Cômodo")
     
-    # Cria uma lista de textos para o usuário identificar qual deletar
+    # Variável criada em português de forma consistente
     opcoes_exclusao = [f"{i} - {c['nome']} ({c['largura']}x{c['comprimento']})" for i, c in enumerate(st.session_state.comodos)]
-    comodo_para_deletar = st.sidebar.selectbox("Selecione qual deseja remover", opciones_exclusao)
+    comodo_para_deletar = st.sidebar.selectbox("Selecione qual deseja remover", opcoes_exclusao)
     
     if st.sidebar.button("❌ Excluir Cômodo Selecionado"):
-        # Extrai o índice numérico do texto selecionado
         idx_deletar = int(comodo_para_deletar.split(" - ")[0])
         st.session_state.comodos.pop(idx_deletar)
         st.toast("Cômodo removido com sucesso!")
@@ -66,7 +65,7 @@ if not st.session_state.comodos:
     st.warning("Adicione um cômodo na barra lateral para iniciar o processamento.")
     st.stop()
 
-# --- CÁLCULOS VOLUMÉTRICOS COM DESCONTO DE VÃOS ---
+# --- CÁLCULOS VOLUMÉTRICOS COESOS ---
 total_concreto_paredes = 0.0
 total_concreto_lajes = 0.0
 total_forma_paredes = 0.0
@@ -123,6 +122,7 @@ with tabs[0]:
         st.metric(label="Área de Fôrma de Alumínio/Aço", value=f"{forma_global:.2f} m²")
         st.caption(f"Descontados {total_portas} port. e {total_janelas} jan. da paginação")
     with col3:
+        escoras = int(np.ceil(total_forma_lajes * 1.2))
         st.metric(label="Gabaritos / Kit Vão de Portas", value=f"{total_portas} jgs")
         st.caption(f"Necessário separar {total_portas} caixilhos estruturais para travar a concretagem")
 
@@ -136,9 +136,9 @@ with tabs[1]:
     y_v = [0, 0, C, C,  0, 0, C, C]
     z_v = [0, 0, 0, 0,  pe_direito, pe_direito, pe_direito, pe_direito]
     
-    i_v = [0, 0, 0, 1, 1, 2, 2, 3, 3, 0, 0, 4]
-    j_v = [1, 4, 3, 2, 5, 3, 6, 0, 7, 2, 5, 5]
-    k_v = [4, 5, 7, 5, 6, 6, 7, 7, 4, 3, 1, 6]
+    i_v = [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5]
+    j_v = [1, 4, 2, 5, 3, 6, 0, 7, 5, 7, 6, 4]
+    k_v = [4, 5, 5, 6, 6, 7, 7, 4, 7, 6, 4, 0]
     
     fig_3d.add_trace(go.Mesh3d(
         x=x_v, y=y_v, z=z_v, i=i_v, j=j_v, k=k_v,
