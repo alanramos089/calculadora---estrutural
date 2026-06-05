@@ -4,13 +4,13 @@ import plotly.graph_objects as go
 
 # Configuração da página web
 st.set_page_config(page_title="Calculadora Concreto Modular", layout="wide")
-st.title("🏗️ Sistema Construtivo: Concreto Modular Armado Monolítico v4.0")
-st.write("Cálculo integrado com gerenciamento completo de cômodos e maquete estrutural 3D.")
+st.title("🏗️ Sistema Construtivo: Concreto Modular Armado Monolítico v4.5")
+st.write("Cálculo integrado com gerenciamento completo de cômodos, diagramas dimensionais e maquete 3D.")
 
 # Inicializa a lista de cômodos na sessão se não existir
 if 'comodos' not in st.session_state:
     st.session_state.comodos = [
-        {"nome": "Quarto 1", "largura": 3.20, "comprimento": 3.00, "portas": 1, "janelas": 1}
+        {"nome": "Sala Principal", "largura": 4.00, "comprimento": 3.50, "portas": 1, "janelas": 1}
     ]
 
 # --- BARRA LATERAL ---
@@ -23,9 +23,9 @@ with st.sidebar.form("configuracoes_obra_form"):
     
     st.markdown("---")
     st.markdown("### 🚪 Adicionar Novo Cômodo")
-    nome_c = st.text_input("Nome do Cômodo", value="Sala")
-    larg_c = st.number_input("Largura Interna (m)", min_value=1.0, max_value=15.0, value=4.00, step=0.1)
-    comp_c = st.number_input("Comprimento Interno (m)", min_value=1.0, max_value=15.0, value=3.50, step=0.1)
+    nome_c = st.text_input("Nome do Cômodo", value="Quarto")
+    larg_c = st.number_input("Largura Interna (m)", min_value=1.0, max_value=15.0, value=3.20, step=0.1)
+    comp_c = st.number_input("Comprimento Interno (m)", min_value=1.0, max_value=15.0, value=3.00, step=0.1)
     
     portas_c = st.number_input("Quantidade de Portas (0.80x2.10m)", min_value=0, max_value=4, value=1, step=1)
     janelas_c = st.number_input("Quantidade de Janelas (1.20x1.00m)", min_value=0, max_value=4, value=1, step=1)
@@ -42,18 +42,15 @@ if botao_calcular:
     })
     st.rerun()
 
-# --- GERENCIADOR DE EXCLUSÃO CORRIGIDO (CORREÇÃO DO SELECTBOX) ---
+# --- GERENCIADOR DE EXCLUSÃO ---
 if st.session_state.comodos:
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 🗑️ Gerenciar / Excluir Cômodo")
-    
     opcoes_exclusao = [f"{i} - {c['nome']} ({c['largura']}x{c['comprimento']})" for i, c in enumerate(st.session_state.comodos)]
-    
-    # CORREÇÃO AQUI: selectbox escrito corretamente em inglês
     comodo_para_deletar = st.sidebar.selectbox("Selecione qual deseja remover", opcoes_exclusao)
     
     if st.sidebar.button("❌ Excluir Cômodo Selecionado"):
-        idx_deletar = int(comodo_para_deletar.split(" - ")[0])
+        idx_deletar = int(comodo_para_deletar.split(" - "))
         st.session_state.comodos.pop(idx_deletar)
         st.toast("Cômodo removido com sucesso!")
         st.rerun()
@@ -66,17 +63,13 @@ if not st.session_state.comodos:
     st.warning("Adicione um cômodo na barra lateral para iniciar o processamento.")
     st.stop()
 
-# --- CÁLCULOS VOLUMÉTRICOS ---
+# --- CÁLCULOS VOLUMÉTRICOS ACUMULADOS ---
 total_concreto_paredes = 0.0
 total_concreto_lajes = 0.0
 total_forma_paredes = 0.0
 total_forma_lajes = 0.0
 total_portas = 0
 total_janelas = 0
-
-comodo_foco = st.session_state.comodos[-1]
-L = comodo_foco["largura"]
-C = comodo_foco["comprimento"]
 
 area_porta_gabarito = 0.80 * 2.10  
 area_janela_gabarito = 1.20 * 1.00 
@@ -110,7 +103,7 @@ forma_global = total_forma_paredes + total_forma_lajes
 # --- INTERFACE POR ABAS ---
 tabs = st.tabs(["📊 Quantitativos Realistas", "🧱 Maquete 3D Prédio/Cômodo"])
 
-with tabs[0]:
+with tabs:
     st.subheader("📋 Painel Construtivo (Paredes de Concreto)")
     st.dataframe(st.session_state.comodos, use_container_width=True)
     
@@ -127,9 +120,18 @@ with tabs[0]:
         st.metric(label="Gabaritos / Kit Vão de Portas", value=f"{total_portas} jgs")
         st.caption(f"Necessário separar {total_portas} caixilhos estruturais para travar a concretagem")
 
-with tabs[1]:
-    st.subheader(f"🧱 Paredes Sólidas Verticais Prontas: {comodo_foco['nome']}")
-    st.write("Clique e arraste com o mouse diretamente sobre o modelo abaixo para rotacionar livremente.")
+with tabs:
+    # SOLUÇÃO DO PONTO 1: Menu de seleção dinâmica para o usuário escolher qual cômodo quer inspecionar no 3D
+    lista_nomes_comodos = [f"{i} - {c['nome']}" for i, c in enumerate(st.session_state.comodos)]
+    comodo_selecionado_texto = st.selectbox("🔍 Selecione qual cômodo deseja visualizar no Projeto 3D:", lista_nomes_comodos)
+    idx_foco = int(comodo_selecionado_texto.split(" - "))
+    
+    comodo_foco = st.session_state.comodos[idx_foco]
+    L = comodo_foco["largura"]
+    C = comodo_foco["comprimento"]
+    
+    st.subheader(f"🧱 Projeto Estrutural Dimensional: {comodo_foco['nome']}")
+    st.write("Verifique abaixo as cotas e dimensões técnicas reais de fabricação das paredes monolíticas.")
     
     fig_3d = go.Figure()
     
@@ -138,23 +140,23 @@ with tabs[1]:
     y_v = [0, 0, C, C,  0, 0, C, C]
     z_v = [0, 0, 0, 0,  pe_direito, pe_direito, pe_direito, pe_direito]
     
-    i_v = [0, 1, 2, 3, 0, 4, 5, 1, 1, 5, 6, 2, 2, 6, 7, 3, 3, 7, 4, 0]
-    j_v = [1, 2, 3, 0, 4, 5, 1, 0, 5, 6, 2, 1, 6, 7, 3, 2, 7, 4, 0, 3]
-    k_v = [4, 5, 6, 7, 1, 0, 0, 4, 6, 2, 1, 5, 7, 3, 2, 6, 4, 0, 3, 7]
+    i_v = [0, 2, 0, 4, 5, 5, 1, 1, 2, 6, 3, 7]
+    j_v = [1, 3, 4, 7, 6, 7, 2, 5, 6, 7, 0, 4]
+    k_v = [2, 0, 5, 6, 2, 3, 5, 6, 7, 3, 4, 0]
     
-    # Desenha as paredes
+    # Desenha as paredes de concreto
     fig_3d.add_trace(go.Mesh3d(
         x=x_v, y=y_v, z=z_v, i=i_v, j=j_v, k=k_v,
-        color='rgb(135, 140, 145)', opacity=0.95, flatshading=True, name="Paredes"
+        color='rgb(140, 145, 150)', opacity=0.95, flatshading=True, name="Paredes"
     ))
     
-    # Desenha o plano da laje
+    # Desenha a laje superior
     fig_3d.add_trace(go.Mesh3d(
         x=[0, L, L, 0], y=[0, 0, C, C], z=[pe_direito, pe_direito, pe_direito, pe_direito],
-        color='rgb(165, 170, 175)', opacity=0.9, name="Laje"
+        color='rgb(170, 175, 180)', opacity=0.9, name="Laje"
     ))
     
-    # Linhas pretas de contorno
+    # Linhas pretas estruturais
     linhas = [
         ([0, L, L, 0, 0], [0, 0, C, C, 0], [0, 0, 0, 0, 0]),
         ([0, L, L, 0, 0], [0, 0, C, C, 0], [pe_direito, pe_direito, pe_direito, pe_direito, pe_direito]),
@@ -166,15 +168,31 @@ with tabs[1]:
     for lx, ly, lz in linhas:
         fig_3d.add_trace(go.Scatter3d(x=lx, y=ly, z=lz, mode='lines', line=dict(color='black', width=4), showlegend=False))
 
+    # SOLUÇÃO DO PONTO 2: DIAGRAMA DIMENSIONAL (Cotas de Engenharia no Espaço 3D)
+    # Adicionando textos flutuantes fixados nos pontos médios das arestas principais
+    fig_3d.add_trace(go.Scatter3d(
+        x=[L/2], y=[-0.2], z=[0.1],
+        mode="text", text=[f"L = {L:.2f} m"],
+        textposition="top center", textfont=dict(color="red", size=14, family="Arial Black")
+    ))
+    fig_3d.add_trace(go.Scatter3d(
+        x=[L + 0.2], y=[C/2], z=[0.1],
+        mode="text", text=[f"C = {C:.2f} m"],
+        textposition="top center", textfont=dict(color="red", size=14, family="Arial Black")
+    ))
+    fig_3d.add_trace(go.Scatter3d(
+        x=[-0.2], y=[-0.2], z=[pe_direito/2],
+        mode="text", text=[f"H = {pe_direito:.2f} m"],
+        textposition="middle left", textfont=dict(color="red", size=14, family="Arial Black")
+    ))
+
     fig_3d.update_layout(
         dragmode='orbit',
         scene=dict(
             xaxis=dict(title='Largura (m)', range=[-0.5, L+1], backgroundcolor="rgb(35, 35, 35)", gridcolor="gray"),
             yaxis=dict(title='Comprimento (m)', range=[-0.5, C+1], backgroundcolor="rgb(35, 35, 35)", gridcolor="gray"),
             zaxis=dict(title='Altura (m)', range=[0, pe_direito+0.5], backgroundcolor="rgb(35, 35, 35)", gridcolor="gray"),
-            camera=dict(
-                eye=dict(x=1.5, y=1.5, z=1.2)
-            ),
+            camera=dict(eye=dict(x=1.5, y=1.5, z=1.2)),
             aspectmode='data'
         ),
         margin=dict(l=0, r=0, b=0, t=0), height=600, showlegend=False
