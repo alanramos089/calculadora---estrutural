@@ -4,13 +4,13 @@ import plotly.graph_objects as go
 
 # Configuração da página web
 st.set_page_config(page_title="Calculadora Concreto Modular", layout="wide")
-st.title("🏗️ Sistema Construtivo: Concreto Modular Armado Monolítico v3.7")
-st.write("Cálculo integrado com desconto automático de vãos de portas e janelas nas fôrmas e cubagem.")
+st.title("🏗️ Sistema Construtivo: Concreto Modular Armado Monolítico v3.8")
+st.write("Cálculo integrado com gerenciamento completo de cômodos e desconto de vãos.")
 
-# CORREÇÃO DA INICIALIZAÇÃO: Define todas as chaves necessárias desde o início
+# Inicializa a lista de cômodos na sessão se não existir
 if 'comodos' not in st.session_state:
     st.session_state.comodos = [
-        {"nome": "Quarto Padrão", "largura": 3.20, "comprimento": 3.00, "portas": 1, "janelas": 1}
+        {"nome": "Quarto 1", "largura": 3.20, "comprimento": 3.00, "portas": 1, "janelas": 1}
     ]
 
 # --- BARRA LATERAL ---
@@ -22,7 +22,7 @@ with st.sidebar.form("configuracoes_obra_form"):
     espessura_laje = st.slider("Espessura da Laje Superior (m)", min_value=0.08, max_value=0.20, value=0.10, step=0.01)
     
     st.markdown("---")
-    st.markdown("### 🚪 Adicionar Novo Cômodo com Vãos")
+    st.markdown("### 🚪 Adicionar Novo Cômodo")
     nome_c = st.text_input("Nome do Cômodo", value="Sala")
     larg_c = st.number_input("Largura Interna (m)", min_value=1.0, max_value=15.0, value=4.00, step=0.1)
     comp_c = st.number_input("Comprimento Interno (m)", min_value=1.0, max_value=15.0, value=3.50, step=0.1)
@@ -33,7 +33,6 @@ with st.sidebar.form("configuracoes_obra_form"):
     botao_calcular = st.form_submit_button("🚀 CALCULAR MÓDULO COM VÃOS")
 
 if botao_calcular:
-    # Cria o novo cômodo garantindo que todas as propriedades existam
     st.session_state.comodos.append({
         "nome": nome_c, 
         "largura": float(larg_c), 
@@ -41,8 +40,25 @@ if botao_calcular:
         "portas": int(portas_c), 
         "janelas": int(janelas_c)
     })
+    st.rerun()
 
-if st.sidebar.button("🧹 Limpar Tudo"):
+# --- NOVA SEÇÃO: EXCLUSÃO INDIVIDUAL DE CÔMODOS ---
+if st.session_state.comodos:
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 🗑️ Gerenciar / Excluir Cômodo")
+    
+    # Cria uma lista de textos para o usuário identificar qual deletar
+    opcoes_exclusao = [f"{i} - {c['nome']} ({c['largura']}x{c['comprimento']})" for i, c in enumerate(st.session_state.comodos)]
+    comodo_para_deletar = st.sidebar.selectbox("Selecione qual deseja remover", opciones_exclusao)
+    
+    if st.sidebar.button("❌ Excluir Cômodo Selecionado"):
+        # Extrai o índice numérico do texto selecionado
+        idx_deletar = int(comodo_para_deletar.split(" - ")[0])
+        st.session_state.comodos.pop(idx_deletar)
+        st.toast("Cômodo removido com sucesso!")
+        st.rerun()
+
+if st.sidebar.button("🧹 Limpar Toda a Obra"):
     st.session_state.comodos = []
     st.rerun()
 
@@ -62,8 +78,8 @@ comodo_foco = st.session_state.comodos[-1]
 L = comodo_foco["largura"]
 C = comodo_foco["comprimento"]
 
-area_porta_gabarito = 0.80 * 2.10  # 1.68 m²
-area_janela_gabarito = 1.20 * 1.00 # 1.20 m²
+area_porta_gabarito = 0.80 * 2.10  
+area_janela_gabarito = 1.20 * 1.00 
 
 for c in st.session_state.comodos:
     w = c["largura"]
@@ -107,7 +123,6 @@ with tabs[0]:
         st.metric(label="Área de Fôrma de Alumínio/Aço", value=f"{forma_global:.2f} m²")
         st.caption(f"Descontados {total_portas} port. e {total_janelas} jan. da paginação")
     with col3:
-        escoras = int(np.ceil(total_forma_lajes * 1.2))
         st.metric(label="Gabaritos / Kit Vão de Portas", value=f"{total_portas} jgs")
         st.caption(f"Necessário separar {total_portas} caixilhos estruturais para travar a concretagem")
 
@@ -117,14 +132,13 @@ with tabs[1]:
     
     fig_3d = go.Figure()
     
-    # 8 pontos de quina para a geometria vertical perfeita
     x_v = [0, L, L, 0,  0, L, L, 0]
     y_v = [0, 0, C, C,  0, 0, C, C]
     z_v = [0, 0, 0, 0,  pe_direito, pe_direito, pe_direito, pe_direito]
     
-    i_v = [0, 1, 1, 2, 2, 3, 3, 0, 0, 1, 2, 3]
-    j_v = [1, 5, 2, 6, 3, 7, 0, 4, 4, 5, 6, 7]
-    k_v = [4, 4, 5, 5, 6, 6, 7, 7, 5, 6, 7, 4]
+    i_v = [0, 0, 0, 1, 1, 2, 2, 3, 3, 0, 0, 4]
+    j_v = [1, 4, 3, 2, 5, 3, 6, 0, 7, 2, 5, 5]
+    k_v = [4, 5, 7, 5, 6, 6, 7, 7, 4, 3, 1, 6]
     
     fig_3d.add_trace(go.Mesh3d(
         x=x_v, y=y_v, z=z_v, i=i_v, j=j_v, k=k_v,
