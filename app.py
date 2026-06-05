@@ -50,7 +50,7 @@ if st.session_state.comodos:
     comodo_para_deletar = st.sidebar.selectbox("Selecione qual deseja remover", opcoes_exclusao)
     
     if st.sidebar.button("❌ Excluir Cômodo Selecionado"):
-        idx_deletar = int(comodo_para_deletar.split(" - "))
+        idx_deletar = int(comodo_para_deletar.split(" - ")[0])
         st.session_state.comodos.pop(idx_deletar)
         st.toast("Cômodo removido com sucesso!")
         st.rerun()
@@ -100,10 +100,10 @@ for c in st.session_state.comodos:
 concreto_global = total_concreto_paredes + total_concreto_lajes
 forma_global = total_forma_paredes + total_forma_lajes
 
-# --- INTERFACE POR ABAS COM INDEXAÇÃO ESTRETA ---
+# --- INTERFACE POR ABAS ---
 tabs = st.tabs(["📊 Quantitativos Realistas", "🧱 Maquete 3D Prédio/Cômodo"])
 
-# ABA 0: QUANTITATIVOS (INDEXADA CORRETAMENTE)
+# ABA 0: QUANTITATIVOS
 with tabs[0]:
     st.subheader("📋 Painel Construtivo (Paredes de Concreto)")
     st.dataframe(st.session_state.comodos, use_container_width=True)
@@ -121,11 +121,16 @@ with tabs[0]:
         st.metric(label="Gabaritos / Kit Vão de Portas", value=f"{total_portas} jgs")
         st.caption(f"Necessário separar {total_portas} caixilhos estruturais para travar a concretagem")
 
-# ABA 1: MAQUETE 3D (INDEXADA CORRETAMENTE)
+# ABA 1: MAQUETE 3D
 with tabs[1]:
     lista_nomes_comodos = [f"{i} - {c['nome']}" for i, c in enumerate(st.session_state.comodos)]
     comodo_selecionado_texto = st.selectbox("🔍 Selecione qual cômodo deseja visualizar no Projeto 3D:", lista_nomes_comodos)
-    idx_foco = int(comodo_selecionado_texto.split(" - "))
+    
+    # TRAVA DE SEGURANÇA CONTRA ERROS: Se a leitura falhar por instabilidade, assume o primeiro índice
+    try:
+        idx_foco = int(comodo_selecionado_texto.split(" - ")[0])
+    except Exception:
+        idx_foco = 0
     
     comodo_foco = st.session_state.comodos[idx_foco]
     L = comodo_foco["largura"]
@@ -141,9 +146,9 @@ with tabs[1]:
     y_v = [0, 0, C, C,  0, 0, C, C]
     z_v = [0, 0, 0, 0,  pe_direito, pe_direito, pe_direito, pe_direito]
     
-    i_v = [0, 0, 0, 1, 1, 2, 2, 3, 3, 0, 4, 5]
-    j_v = [1, 4, 3, 2, 5, 3, 6, 0, 7, 4, 5, 6]
-    k_v = [4, 5, 7, 5, 6, 6, 7, 7, 4, 1, 7, 7]
+    i_v = [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5]
+    j_v = [1, 4, 2, 5, 3, 6, 0, 7, 5, 0, 6, 1]
+    k_v = [4, 5, 5, 6, 6, 7, 7, 4, 1, 3, 2, 2]
     
     # Desenha as paredes de concreto
     fig_3d.add_trace(go.Mesh3d(
