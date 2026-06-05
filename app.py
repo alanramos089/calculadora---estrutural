@@ -7,10 +7,10 @@ st.set_page_config(page_title="Calculadora Concreto Modular", layout="wide")
 st.title("🏗️ Sistema Construtivo: Concreto Modular Armado Monolítico v3.7")
 st.write("Cálculo integrado com desconto automático de vãos de portas e janelas nas fôrmas e cubagem.")
 
-# Inicializa a lista de cômodos na sessão se não existir
+# CORREÇÃO DA INICIALIZAÇÃO: Define todas as chaves necessárias desde o início
 if 'comodos' not in st.session_state:
     st.session_state.comodos = [
-        {"nome": "Sala Principal", "largura": 4.00, "comprimento": 3.50, "portas": 1, "janelas": 1}
+        {"nome": "Quarto Padrão", "largura": 3.20, "comprimento": 3.00, "portas": 1, "janelas": 1}
     ]
 
 # --- BARRA LATERAL ---
@@ -23,29 +23,31 @@ with st.sidebar.form("configuracoes_obra_form"):
     
     st.markdown("---")
     st.markdown("### 🚪 Adicionar Novo Cômodo com Vãos")
-    nome_c = st.text_input("Nome do Cômodo", value="Quarto")
-    larg_c = st.number_input("Largura Interna (m)", min_value=1.0, max_value=15.0, value=3.20, step=0.1)
-    comp_c = st.number_input("Comprimento Interno (m)", min_value=1.0, max_value=15.0, value=3.00, step=0.1)
+    nome_c = st.text_input("Nome do Cômodo", value="Sala")
+    larg_c = st.number_input("Largura Interna (m)", min_value=1.0, max_value=15.0, value=4.00, step=0.1)
+    comp_c = st.number_input("Comprimento Interno (m)", min_value=1.0, max_value=15.0, value=3.50, step=0.1)
     
-    # NOVOS INPUTS DE VÃOS PEDIDOS
     portas_c = st.number_input("Quantidade de Portas (0.80x2.10m)", min_value=0, max_value=4, value=1, step=1)
     janelas_c = st.number_input("Quantidade de Janelas (1.20x1.00m)", min_value=0, max_value=4, value=1, step=1)
     
     botao_calcular = st.form_submit_button("🚀 CALCULAR MÓDULO COM VÃOS")
 
 if botao_calcular:
-    if not any(c['nome'] == nome_c and c['largura'] == larg_c for c in st.session_state.comodos):
-        st.session_state.comodos.append({
-            "nome": nome_c, "largura": larg_c, "comprimento": comp_c, 
-            "portas": portas_c, "janelas": janelas_c
-        })
+    # Cria o novo cômodo garantindo que todas as propriedades existam
+    st.session_state.comodos.append({
+        "nome": nome_c, 
+        "largura": float(larg_c), 
+        "comprimento": float(comp_c), 
+        "portas": int(portas_c), 
+        "janelas": int(janelas_c)
+    })
 
 if st.sidebar.button("🧹 Limpar Tudo"):
     st.session_state.comodos = []
     st.rerun()
 
 if not st.session_state.comodos:
-    st.warning("Adicione um cômodo para processar.")
+    st.warning("Adicione um cômodo na barra lateral para iniciar o processamento.")
     st.stop()
 
 # --- CÁLCULOS VOLUMÉTRICOS COM DESCONTO DE VÃOS ---
@@ -60,42 +62,29 @@ comodo_foco = st.session_state.comodos[-1]
 L = comodo_foco["largura"]
 C = comodo_foco["comprimento"]
 
-# Áreas padrão de vãos para desconto
 area_porta_gabarito = 0.80 * 2.10  # 1.68 m²
 area_janela_gabarito = 1.20 * 1.00 # 1.20 m²
 
 for c in st.session_state.comodos:
     w = c["largura"]
     h = c["comprimento"]
-    n_portas = c["portas"]
-    n_janelas = c["janelas"]
+    n_portas = c.get("portas", 0)
+    n_janelas = c.get("janelas", 0)
     
     total_portas += n_portas
     total_janelas += n_janelas
     
-    # Perímetro médio da parede maciça
     perimetro_centro = 2 * ((w + espessura_parede) + (h + espessura_parede))
-    
-    # Área bruta de todas as paredes deste cômodo
     area_parede_bruta = perimetro_centro * pe_direito
-    
-    # Desconto dos vãos de portas e janelas na área de parede
     area_descontos = (n_portas * area_porta_gabarito) + (n_janelas * area_janela_gabarito)
     area_parede_liquida = area_parede_bruta - area_descontos
     
-    # Cubagem de concreto correta (Apenas onde há parede física)
-    vol_parede = area_parede_liquida * espessura_parede
-    total_concreto_paredes += vol_parede
+    total_concreto_paredes += (area_parede_liquida * espessura_parede)
+    total_concreto_lajes += ((w * h) * espessura_laje)
     
-    # Volume de concreto da laje maciça
-    vol_laje = (w * h) * espessura_laje
-    total_concreto_lajes += vol_laje
-    
-    # Fôrmas modulares das paredes (Face Interna + Face Externa) descontando os vãos abertos
     forma_interna_bruta = 2 * (w + h) * pe_direito
     forma_externa_bruta = 2 * ((w + 2*espessura_parede) + (h + 2*espessura_parede)) * pe_direito
     
-    # Multiplica por 2 porque abre o vão na fôrma da frente e na fôrma de trás
     total_forma_paredes += (forma_interna_bruta + forma_externa_bruta) - (area_descontos * 2)
     total_forma_lajes += (w * h)
 
@@ -128,30 +117,25 @@ with tabs[1]:
     
     fig_3d = go.Figure()
     
-    # CORREÇÃO GEOMÉTRICA DOS TRIÂNGULOS (PAREDES RETAS VERTICAIS)
-    # 8 pontos de quina: 4 no chão (0 a 3) e 4 no topo (4 a 7)
+    # 8 pontos de quina para a geometria vertical perfeita
     x_v = [0, L, L, 0,  0, L, L, 0]
     y_v = [0, 0, C, C,  0, 0, C, C]
     z_v = [0, 0, 0, 0,  pe_direito, pe_direito, pe_direito, pe_direito]
     
-    # Ordem de triângulos correta para fechar caixas verticais sem distorção piramidal
-    i_v = [0, 0, 1, 1, 2, 2, 3, 3]
-    j_v = [1, 5, 2, 6, 3, 7, 0, 4]
-    k_v = [5, 4, 6, 5, 7, 6, 4, 7]
+    i_v = [0, 1, 1, 2, 2, 3, 3, 0, 0, 1, 2, 3]
+    j_v = [1, 5, 2, 6, 3, 7, 0, 4, 4, 5, 6, 7]
+    k_v = [4, 4, 5, 5, 6, 6, 7, 7, 5, 6, 7, 4]
     
-    # Paredes verticais sólidas cinzas
     fig_3d.add_trace(go.Mesh3d(
         x=x_v, y=y_v, z=z_v, i=i_v, j=j_v, k=k_v,
         color='rgb(140, 145, 150)', opacity=0.95, flatshading=True, name="Paredes"
     ))
     
-    # Teto / Laje plana superior
     fig_3d.add_trace(go.Mesh3d(
         x=[0, L, L, 0], y=[0, 0, C, C], z=[pe_direito, pe_direito, pe_direito, pe_direito],
         color='rgb(170, 175, 180)', opacity=0.9, name="Laje"
     ))
     
-    # Linhas de quina pretas limpas para dar acabamento tridimensional
     linhas = [
         ([0, L, L, 0, 0], [0, 0, C, C, 0], [0, 0, 0, 0, 0]),
         ([0, L, L, 0, 0], [0, 0, C, C, 0], [pe_direito, pe_direito, pe_direito, pe_direito, pe_direito]),
