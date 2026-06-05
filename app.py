@@ -113,7 +113,7 @@ forma_global = total_forma_paredes + total_forma_lajes
 # --- INTERFACE POR ABAS ---
 tabs = st.tabs(["📊 Quantitativos Realistas", "🧱 Maquete 3D Prédio/Cômodo"])
 
-with tabs:
+with tabs[0]:
     st.subheader("📋 Painel Construtivo (Paredes de Concreto)")
     st.dataframe(st.session_state.comodos, use_container_width=True)
     
@@ -130,23 +130,23 @@ with tabs:
         st.metric(label="Gabaritos / Kit Vão de Portas", value=f"{total_portas} jgs")
         st.caption(f"Necessário separar {total_portas} caixilhos estruturais para travar a concretagem")
 
-with tabs:
+with tabs[1]:
     st.subheader(f"🧱 Paredes Sólidas Verticais Prontas: {comodo_foco['nome']}")
     st.write("Mova o controle de câmera na barra lateral para rotacionar a maquete de concreto.")
     
     fig_3d = go.Figure()
     
-    # Coordenadas dos vértices
+    # Coordenadas dos vértices (Chão e Topo)
     x_v = [0, L, L, 0,  0, L, L, 0]
     y_v = [0, 0, C, C,  0, 0, C, C]
     z_v = [0, 0, 0, 0,  pe_direito, pe_direito, pe_direito, pe_direito]
     
-    # Triângulos das faces
-    i_v =
-    j_v =
-    k_v =
+    # ÍNDICES TOTALMENTE PREENCHIDOS E CORRIGIDOS AQUI:
+    i_v = [0, 1, 1, 2, 2, 3, 3, 0, 0, 1, 2, 3]
+    j_v = [1, 5, 2, 6, 3, 7, 0, 4, 4, 5, 6, 7]
+    k_v = [4, 4, 5, 5, 6, 6, 7, 7, 5, 2, 3, 0]
     
-    # Renderização estável das paredes de concreto
+    # Renderização das paredes de concreto
     fig_3d.add_trace(go.Mesh3d(
         x=x_v, y=y_v, z=z_v, i=i_v, j=j_v, k=k_v,
         color='rgb(135, 140, 145)', opacity=0.95, flatshading=True, name="Paredes"
@@ -160,17 +160,17 @@ with tabs:
     
     # Contornos pretos estruturais
     linhas = [
-        ([0, L, L, 0, 0], [0, 0, C, C, 0],),
+        ([0, L, L, 0, 0], [0, 0, C, C, 0], [0, 0, 0, 0, 0]),
         ([0, L, L, 0, 0], [0, 0, C, C, 0], [pe_direito, pe_direito, pe_direito, pe_direito, pe_direito]),
-        (,, [0, pe_direito]),
-        ([L, L],, [0, pe_direito]),
+        ([0, 0], [0, 0], [0, pe_direito]),
+        ([L, L], [0, 0], [0, pe_direito]),
         ([L, L], [C, C], [0, pe_direito]),
-        (, [C, C], [0, pe_direito])
+        ([0, 0], [C, C], [0, pe_direito])
     ]
     for lx, ly, lz in linhas:
         fig_3d.add_trace(go.Scatter3d(x=lx, y=ly, z=lz, mode='lines', line=dict(color='black', width=4), showlegend=False))
 
-    # Conversão do ângulo do controle lateral para radianos para guiar os eixos da câmera
+    # Conversão do ângulo para radianos (Câmera segura)
     rad = np.radians(angulo_visao)
     distancia = 2.0
     cam_x = distancia * np.cos(rad)
