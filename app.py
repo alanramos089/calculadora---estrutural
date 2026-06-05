@@ -53,7 +53,7 @@ if st.session_state.comodos:
     comodo_para_deletar = st.sidebar.selectbox("Selecione qual deseja remover", opcoes_exclusao)
     
     if st.sidebar.button("❌ Remover do Projeto"):
-        idx_deletar = int(comodo_para_deletar.split(" - ")[0])
+        idx_deletar = int(comodo_para_deletar.split(" - "))
         st.session_state.comodos.pop(idx_deletar)
         st.toast("Módulo removido da planta!")
         st.rerun()
@@ -122,7 +122,7 @@ with tab0:
         st.caption(f"Calculado com desconto de vãos de esquadrias")
     with col3:
         st.metric(label="Área Metálica de Tela Soldada Q092", value=f"{total_telas_aço:.2f} m²")
-        st.caption(f"Armadura centralizada nas paredes monolíticas")
+        st.caption("Armadura centralizada nas paredes monolíticas")
 
 with tab1:
     st.subheader("🧱 Maquete Tridimensional da Planta Desenhada")
@@ -130,7 +130,6 @@ with tab1:
     
     fig_3d = go.Figure()
     
-    # Marcadores para as cotas dos limites externos máximos do terreno
     max_x, max_y = 0.0, 0.0
     
     for c in st.session_state.comodos:
@@ -140,11 +139,10 @@ with tab1:
         py = c["pos_y"]
         nome = c["nome"]
         
-        # Monitora o tamanho total do imóvel para ajustar o zoom da câmera
         if (px + w) > max_x: max_x = (px + w)
         if (py + h) > max_y: max_y = (py + h)
             
-        # 1. RENDERIZAÇÃO DAS PAREDES DO CÔMODO (Posicionado em sua coordenada X, Y livre)
+        # 1. Paredes do Módulo
         fig_3d.add_trace(go.Mesh3d(
             x=[px, px+w, px+w, px, px, px+w, px+w, px],
             y=[py, py, py+h, py+h, py, py, py+h, py+h],
@@ -152,8 +150,8 @@ with tab1:
             color='rgb(140, 145, 150)', opacity=0.65, flatshading=True, name=nome
         ))
         
-        # 2. RENDERIZAÇÃO DA LAJE SUPERIOR COM BEIRAL INDIVIDUAL
-        b = 0.25  # Beiral técnico de 25cm
+        # 2. Laje Superior com Beiral
+        b = 0.25  
         fig_3d.add_trace(go.Mesh3d(
             x=[px-b, px+w+b, px+w+b, px-b],
             y=[py-b, py-b, py+h+b, py+h+b],
@@ -161,29 +159,29 @@ with tab1:
             color='rgb(175, 180, 185)', opacity=0.85, name=f"Laje {nome}"
         ))
         
-        # 3. LINHAS DE CONTORNO PRETAS EM CADA MÓDULO PARA SEPARAÇÃO TÉCNICA
+        # 3. LINHAS DE CONTORNO CORRIGIDAS SEM ESPAÇOS EM BRANCO
         linhas_c = [
             ([px, px+w, px+w, px, px], [py, py, py+h, py+h, py], [pe_direito]*5),
             ([px, px+w, px+w, px, px], [py, py, py+h, py+h, py], [0]*5),
-            (, [py, py], [0, pe_direito]),
+            ([px, px], [py, py], [0, pe_direito]),
             ([px+w, px+w], [py, py], [0, pe_direito]),
             ([px+w, px+w], [py+h, py+h], [0, pe_direito]),
-            (, [py+h, py+h], [0, pe_direito])
+            ([px, px], [py+h, py+h], [0, pe_direito])
         ]
         for lx, ly, lz in linhas_c:
             fig_3d.add_trace(go.Scatter3d(x=lx, y=ly, z=lz, mode='lines', line=dict(color='black', width=3), showlegend=False))
             
-        # 4. TEXTO DE IDENTIFICAÇÃO DO AMBIENTE NO TOPO DO BLOCO
+        # 4. Texto identificador no topo
         fig_3d.add_trace(go.Scatter3d(
             x=[px + w/2], y=[py + h/2], z=[pe_direito + 0.3],
             mode="text", text=[nome], textfont=dict(color="cyan", size=11, family="Arial Black")
         ))
         
-        # 5. COTAS DE CADA COMPARTIMENTO INDIVIDUAL
+        # 5. Cotas Individuais
         fig_3d.add_trace(go.Scatter3d(x=[px + w/2], y=[py - 0.2], z=[0.05], mode="text", text=[f"{w:.2f}m"], textfont=dict(color="red", size=11)))
         fig_3d.add_trace(go.Scatter3d(x=[px + w + 0.2], y=[py + h/2], z=[0.05], mode="text", text=[f"{h:.2f}m"], textfont=dict(color="red", size=11)))
 
-    # COTAS DO LIMITE EXTERNO DO GABARITO DA CASA (Linhas de divisa laranja)
+    # Cotas Totais Laranja
     fig_3d.add_trace(go.Scatter3d(x=[max_x/2], y=[-0.8], z=[0.1], mode="text", text=[f"LARGURA MÁXIMA DA PLANTA = {max_x:.2f} m"], textfont=dict(color="orange", size=13, family="Arial Black")))
     fig_3d.add_trace(go.Scatter3d(x=[max_x + 0.8], y=[max_y/2], z=[0.1], mode="text", text=[f"COMPRIMENTO MÁXIMO DA PLANTA = {max_y:.2f} m"], textfont=dict(color="orange", size=13, family="Arial Black")))
 
