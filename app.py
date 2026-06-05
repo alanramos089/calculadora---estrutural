@@ -50,7 +50,7 @@ if st.session_state.comodos:
     comodo_para_deletar = st.sidebar.selectbox("Selecione qual deseja remover", opcoes_exclusao)
     
     if st.sidebar.button("❌ Excluir Cômodo Selecionado"):
-        idx_deletar = int(comodo_para_deletar.split(" - ")[0])
+        idx_deletar = int(comodo_para_deletar.split(" - "))
         st.session_state.comodos.pop(idx_deletar)
         st.toast("Cômodo removido com sucesso!")
         st.rerun()
@@ -121,12 +121,14 @@ with tabs[0]:
         st.metric(label="Gabaritos / Kit Vão de Portas", value=f"{total_portas} jgs")
         st.caption(f"Necessário separar {total_portas} caixilhos estruturais para travar a concretagem")
 
-# ABA 1: MAQUETE 3D
+# ABA 1: MAQUETE 3D MEHORADA (SELETOR NO TOPO COM CARD)
 with tabs[1]:
-    lista_nomes_comodos = [f"{i} - {c['nome']}" for i, c in enumerate(st.session_state.comodos)]
-    comodo_selecionado_texto = st.selectbox("🔍 Selecione qual cômodo deseja visualizar no Projeto 3D:", lista_nomes_comodos)
+    # Coloca o seletor em um container com destaque visual na página principal
+    with st.container(border=True):
+        st.markdown("### 🔍 Navegação do Projeto Estrutural")
+        lista_nomes_comodos = [f"{i} - {c['nome']}" for i, c in enumerate(st.session_state.comodos)]
+        comodo_selecionado_texto = st.selectbox("Escolha qual ambiente você quer projetar na maquete 3D abaixo:", lista_nomes_comodos)
     
-    # TRAVA DE SEGURANÇA CONTRA ERROS: Se a leitura falhar por instabilidade, assume o primeiro índice
     try:
         idx_foco = int(comodo_selecionado_texto.split(" - ")[0])
     except Exception:
@@ -136,8 +138,9 @@ with tabs[1]:
     L = comodo_foco["largura"]
     C = comodo_foco["comprimento"]
     
-    st.subheader(f"🧱 Projeto Estrutural Dimensional: {comodo_foco['nome']}")
-    st.write("Verifique abaixo as cotas e dimensões técnicas reais de fabricação das paredes monolíticas.")
+    # Mensagem em destaque dizendo qual cômodo está aparecendo
+    st.success(f"Visualizando agora: **{comodo_foco['nome']}** ({L:.2f}m x {C:.2f}m)")
+    st.write("Clique e arraste na maquete abaixo para orbitar o ambiente selecionado.")
     
     fig_3d = go.Figure()
     
@@ -147,8 +150,8 @@ with tabs[1]:
     z_v = [0, 0, 0, 0,  pe_direito, pe_direito, pe_direito, pe_direito]
     
     i_v = [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5]
-    j_v = [1, 4, 2, 5, 3, 6, 0, 7, 5, 0, 6, 1]
-    k_v = [4, 5, 5, 6, 6, 7, 7, 4, 1, 3, 2, 2]
+    j_v = [1, 4, 2, 5, 3, 6, 0, 7, 5, 7, 6, 7]
+    k_v = [4, 5, 5, 6, 6, 7, 7, 4, 6, 6, 2, 3]
     
     # Desenha as paredes de concreto
     fig_3d.add_trace(go.Mesh3d(
