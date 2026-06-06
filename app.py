@@ -5,7 +5,7 @@ from streamlit_drawable_canvas import st_canvas
 
 # Configuração da página web
 st.set_page_config(page_title="Configurador Concreto Modular", layout="wide")
-st.title("🏗️ Sistema Estrutural: Concreto Modular Armado Monolítico v9.0")
+st.title("🏗️ Sistema Estrutural: Concreto Modular Armado Monolítico v9.1")
 st.write("Mesa de Desenho e Verificação de Engenharia: Desenhe no grid e o sistema valida a estabilidade mecânica na hora.")
 
 # --- BARRA LATERAL ---
@@ -14,10 +14,9 @@ espessura_parede = st.sidebar.slider("Espessura da Parede Maciça (m)", min_valu
 pe_direito = st.sidebar.slider("Altura da Parede / Pé-Direito (m)", min_value=2.40, max_value=4.00, value=2.80, step=0.10)
 espessura_laje = st.sidebar.slider("Espessura da Laje Superior (m)", min_value=0.08, max_value=0.20, value=0.10, step=0.01)
 
-# NOVOS INPUTS TÉCNICOS INSPIRADOS NA SKYCIV
 st.sidebar.markdown("---")
 st.sidebar.subheader("🔬 Propriedades dos Materiais")
-fck = st.sidebar.selectbox("Resistência do Concreto (fck)", [25, 30, 35, 40], index=0, help="Resistência característica à compressão em MPa")
+fck = st.sidebar.selectbox("Resistência do Concreto (fck)", [20, 25, 30, 35, 40], index=1, help="Resistência característica à compressão em MPa")
 sobrecarga_laje = st.sidebar.slider("Sobrecarga Atuante na Laje (kN/m²)", min_value=1.5, max_value=5.0, value=2.0, step=0.5)
 
 st.sidebar.markdown("---")
@@ -29,7 +28,7 @@ tab0, tab1, tab2 = st.tabs(["✏️ Mesa de Desenho", "📊 Análise Estrutural 
 PIXELS_POR_METRO = 40.0
 comodos_detectados = []
 
-# ABA 0: MESA DE DESENHO E TABELA DE AJUSTE
+# ABA 0: MESA DE DESENHO
 with tab0:
     st.subheader("✏️ Desenhe a Planta Baixa do Imóvel")
     st.caption("Trace os cômodos no grid. As correções e verificações técnicas abrirão nas abas seguintes.")
@@ -44,7 +43,7 @@ with tab0:
         width=800,
         drawing_mode="rect",
         display_toolbar=True,
-        key="mesa_desenho_tecnica_v9",
+        key="mesa_desenho_tecnica_v91",
     )
 
     comodos_temporarios = []
@@ -69,7 +68,7 @@ with tab0:
     if comodos_temporarios:
         st.markdown("---")
         st.markdown("### 📝 Ajuste Fino de Dimensões")
-        dados_ajustados = st.data_editor(comodos_temporarios, use_container_width=True, num_rows="fixed", key="editor_v9")
+        dados_ajustados = st.data_editor(comodos_temporarios, use_container_width=True, num_rows="fixed", key="editor_v91")
         comodos_detectados = dados_ajustados
     else:
         st.warning("⚠️ Desenhe um retângulo com o mouse no quadro acima para iniciar.")
@@ -82,7 +81,6 @@ total_forma_paredes = 0.0
 total_forma_lajes = 0.0
 total_telas_aço = 0.0
 
-# Coeficientes de segurança da Engenharia Civil (NBR 6118 / ACI)
 gama_concreto = 1.4
 gama_cargas = 1.4
 
@@ -92,14 +90,11 @@ for c in comodos_detectados:
     
     perimetro_centro = 2 * ((w + espessura_parede) + (h + espessura_parede))
     area_parede_bruta = perimetro_centro * pe_direito
-    area_descontos = (0.80 * 2.10) + (1.20 * 1.00) # 1 porta e 1 janela padrão inclusas
+    area_descontos = (0.80 * 2.10) + (1.20 * 1.00)
     area_parede_liquida = max(0.1, area_parede_bruta - area_descontos)
     
-    # Cubagem Física
-    vol_p = area_parede_liquida * espessura_parede
-    vol_l = (w * h) * espessura_laje
-    total_concreto_paredes += vol_p
-    total_concreto_lajes += vol_l
+    total_concreto_paredes += area_parede_liquida * espessura_parede
+    total_concreto_lajes += (w * h) * espessura_laje
     
     total_forma_paredes += (2 * perimetro_centro * pe_direito) - (area_descontos * 2)
     total_forma_lajes += (w * h)
@@ -113,22 +108,19 @@ comodo_critico = comodos_detectados[-1]
 L_c = comodo_critico["Largura (m)"]
 C_c = comodo_critico["Comprimento (m)"]
 
-# 1. Carga de Projeto (Atuante) em kN por metro linear de parede
-peso_proprio_laje = espessura_laje * 25.0  # 25 kN/m³ peso do concreto
+peso_proprio_laje = espessura_laje * 25.0  
 carga_total_laje_projeto = (peso_proprio_laje + sobrecarga_laje) * gama_cargas
 area_influencia_laje = (L_c * C_c)
-carga_laje_na_parede = (carga_total_laje_projeto * area_influencia_laje) / (2 * (L_c + C_c))
+carga_laje_na_parede = (carga_total_laje_projeto * area_influencia_laje) / max(0.1, (2 * (L_c + C_c)))
 peso_proprio_parede_projeto = (pe_direito * espessura_parede * 25.0) * gama_concreto
-carga_atuante_total = carga_laje_na_parede + peso_proprio_parede_projeto # kN/m
+carga_atuante_total = carga_laje_na_parede + peso_proprio_parede_projeto 
 
-# 2. Capacidade de Carga Última da Parede (Resistência) em kN por metro linear
-fck_design = (fck * 1000) / gama_concreto # Converte MPa para kN/m² e aplica minoração
-area_secao_metro = espessura_parede * 1.0  # Seção por metro linear de parede
+fck_design = (fck * 1000) / gama_concreto 
+area_secao_metro = espessura_parede * 1.0  
 esbeltez_fator = 1.0 - ((pe_direito) / (32 * espessura_parede))**2
-esbeltez_fator = max(0.1, esbeltez_fator) # Trava de segurança física
-capacidade_resistencia = 0.55 * 0.70 * fck_design * area_secao_metro * esbeltez_fator # kN/m
+esbeltez_fator = max(0.1, esbeltez_fator) 
+capacidade_resistencia = 0.55 * 0.70 * fck_design * area_secao_metro * esbeltez_fator 
 
-# 3. Razão de Esforço (Demand / Capacity Ratio)
 razao_esforco = carga_atuante_total / capacidade_resistencia
 
 # ABA 1: ANÁLISE ESTRUTURAL TÉCNICA
@@ -139,16 +131,16 @@ with tab1:
     with col_status:
         if razao_esforco <= 1.0:
             st.success("🟢 ESTRUTURA APROVADA")
-            st.metric(label="Taxa de Utilização das Fôrmas", value=f"{razao_esforco*100:.1f} %", delta="Seguro", delta_color="normal")
+            st.metric(label="Taxa de Utilização Estrutural", value=f"{razao_esforco*100:.1f} %", delta="Seguro", delta_color="normal")
         else:
             st.error("🔴 ALERTA: RISCO DE ESBARRAMENTO")
-            st.metric(label="Taxa de Utilização das Fôrmas", value=f"{razao_esforco*100:.1f} %", delta="Aumentar Espessura", delta_color="inverse")
+            st.metric(label="Taxa de Utilização Estrutural", value=f"{razao_esforco*100:.1f} %", delta="Aumentar Espessura", delta_color="inverse")
             
     with col_cap:
-        st.metric(label="Capacidade Última da Parede (Kn/m)", value=f"{capacidade_resistencia:.1f} kN/m")
+        st.metric(label="Capacidade Última da Parede (kN/m)", value=f"{capacidade_resistencia:.1f} kN/m")
         st.caption("Limite físico de esmagamento do concreto modular")
     with col_at:
-        st.metric(label="Carga de Projeto Atuante (Kn/m)", value=f"{carga_atuante_total:.1f} kN/m")
+        st.metric(label="Carga de Projeto Atuante (kN/m)", value=f"{carga_atuante_total:.1f} kN/m")
         st.caption("Peso acumulado da estrutura + sobrecarga de norma")
         
     st.markdown("---")
@@ -164,7 +156,7 @@ with tab1:
         st.metric(label="Área Metálica de Tela Soldada Q092", value=f"{total_telas_aço:.2f} m²")
         st.caption("Armadura centralizada nas paredes maciças")
 
-# ABA 2: MAQUETE 3D
+# ABA 2: MAQUETE 3D TÉCNICA (REPRESENTAÇÃO BLINDADA)
 with tab2:
     st.subheader("🧱 Maquete Estrutural e Projeto Dimensional")
     fig_3d = go.Figure()
@@ -180,32 +172,39 @@ with tab2:
         if (px + w) > max_x: max_x = (px + w)
         if (py + h) > max_y: max_y = (py + h)
             
-        # Paredes maciças
-        x_v = [px, px+w, px+w, px,   px, px+w, px+w, px]
-        y_v = [py, py, py+h, py+h,   py, py, py+h, py+h]
-        z_v = [0, 0, 0, 0,           pe_direito, pe_direito, pe_direito, pe_direito]
-        
-        fig_3d.add_trace(go.Mesh3d(
-            x=x_v, y=y_v, z=z_v, i=, j=, k=,
-            color='rgb(135, 140, 145)', opacity=0.90, flatshading=True, name="Paredes"
+        # Desenho blindado das 4 paredes fechadas por contornos de malha estrutural
+        fig_3d.add_trace(go.Scatter3d(
+            x=[px, px+w, px+w, px, px, px, px+w, px+w, px, px],
+            y=[py, py, py+h, py+h, py, py, py, py+h, py+h, py],
+            z=[0, 0, 0, 0, 0, pe_direito, pe_direito, pe_direito, pe_direito, pe_direito],
+            mode='lines',
+            line=dict(color='rgb(135, 140, 145)', width=8),
+            name="Paredes Maciças"
         ))
         
-        # Laje
+        # Laje Superior com Beiral Técnico (25cm)
         b = 0.25  
         fig_3d.add_trace(go.Mesh3d(
             x=[px-b, px+w+b, px+w+b, px-b], y=[py-b, py-b, py+h+b, py+h+b], z=[pe_direito, pe_direito, pe_direito, pe_direito],
             color='rgb(165, 170, 175)', opacity=0.95, name="Laje"
         ))
         
-        # Contornos
+        # Linhas pretas de acabamento técnico
         linhas_c = [
             ([px, px+w, px+w, px, px], [py, py, py+h, py+h, py], [pe_direito]*5),
-            ([px, px+w, px+w, px, px], [py, py, py+h, py+h, py],),
+            ([px, px+w, px+w, px, px], [py, py, py+h, py+h, py], [0]*5),
             ([px, px], [py, py], [0, pe_direito]), ([px+w, px+w], [py, py], [0, pe_direito]),
             ([px+w, px+w], [py+h, py+h], [0, pe_direito]), ([px, px], [py+h, py+h], [0, pe_direito])
         ]
         for lx, ly, lz in linhas_c:
-            fig_3d.add_trace(go.Scatter3d(x=lx, y=ly, z=lz, mode='lines', line=dict(color='black', width=4), showlegend=False))
+            fig_3d.add_trace(go.Scatter3d(x=lx, y=ly, z=lz, mode='lines', line=dict(color='black', width=3), showlegend=False))
             
         fig_3d.add_trace(go.Scatter3d(x=[px + w/2], y=[py + h/2], z=[pe_direito + 0.3], mode="text", text=[nome], textfont=dict(color="cyan", size=11, family="Arial Black")))
         fig_3d.add_trace(go.Scatter3d(x=[px + w/2], y=[py - 0.2], z=[0.05], mode="text", text=[f"L={w:.2f}m"], textfont=dict(color="red", size=11, family="Arial Black")))
+        fig_3d.add_trace(go.Scatter3d(x=[px + w + 0.2], y=[py + h/2], z=[0.05], mode="text", text=[f"C={h:.2f}m"], textfont=dict(color="red", size=11, family="Arial Black")))
+
+    fig_3d.update_layout(
+        dragmode='orbit',
+        scene=dict(
+            xaxis=dict(title='Largura X (m)', range=[-1, max_x+1.5], backgroundcolor="rgb(35, 35, 35)", gridcolor="gray"),
+            yaxis=dict(title='Comprimento Y (m)', range=[-1, max_y+1.5], backgroundcolor="rgb(35, 35, 35)", gridcolor="gray"),
