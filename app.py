@@ -5,57 +5,53 @@ from streamlit_drawable_canvas import st_canvas
 
 # Configuração da página web
 st.set_page_config(page_title="Configurador Concreto Modular", layout="wide")
-st.title("🏗️ Sistema Construtivo: Concreto Modular Armado Monolítico v8.0")
+st.title("🏗️ Sistema Construtivo: Concreto Modular Armado Monolítico v8.1")
 st.write("Mesa de Desenho Interativa: Desenhe os cômodos com o mouse no grid para erguer a estrutura em 3D.")
 
 # --- BARRA LATERAL ---
 st.sidebar.header("⚙️ Parâmetros Globais do Molde")
 espessura_parede = st.sidebar.slider("Espessura da Parede Maciça (m)", min_value=0.08, max_value=0.20, value=0.10, step=0.01)
-pe_direito = st.sidebar.slider("Altura do Pé-Direito / Paredes (m)", min_value=2.40, max_value=4.00, value=2.80, step=0.10)
+pe_direito = st.sidebar.slider("Altura da Parede / Pé-Direito (m)", min_value=2.40, max_value=4.00, value=2.80, step=0.10)
 espessura_laje = st.sidebar.slider("Espessura da Laje Superior (m)", min_value=0.08, max_value=0.20, value=0.10, step=0.01)
 
 st.sidebar.markdown("---")
 st.sidebar.info("💡 **Como usar a Mesa de Desenho:**\n1. Selecione a ferramenta de Retângulo (ícone quadrado na barra do desenho).\n2. Clique e arraste no grid para desenhar um cômodo.\n3. Cada quadrado grande do grid equivale a **1,0 metro** na obra.\n4. Mude para a aba do 3D para inspecionar o modelo erguido!")
 
-# --- INTERFACE POR ABAS ---
-tab_desenho, tab_materiais, tab_3d = st.tabs(["✏️ Mesa de Desenho da Planta", "📊 Lista de Materiais Calculada", "🧱 Projeto Estrutural 3D"])
+# --- INTERFACE POR ABAS (CORREÇÃO DE DECLARAÇÃO ESTRETA) ---
+tab0, tab1, tab2 = st.tabs(["✏️ Mesa de Desenho da Planta", "📊 Lista de Materiais Calculada", "🧱 Projeto Estrutural 3D"])
 
 # Fator de conversão: 40 pixels no canvas = 1.0 metro na vida real
 PIXELS_POR_METRO = 40.0
 
-# Processamento geométrico dos retângulos desenhados pelo usuário
 comodos_detectados = []
 
-with tab_desenho:
+# ABA 0: MESA DE DESENHO
+with tab0:
     st.subheader("✏️ Desenhe a Planta Baixa do Imóvel")
     st.caption("Use o mouse para traçar os ambientes sobre a grade modular. Os materiais e o 3D serão gerados na hora.")
     
-    # Renderização da Mesa de Desenho Interativa (Canvas com Grid de fundo)
     canvas_result = st_canvas(
-        fill_color="rgba(135, 140, 145, 0.4)",  # Cor translúcida do concreto moldado
+        fill_color="rgba(135, 140, 145, 0.4)",
         stroke_width=3,
         stroke_color="#000000",
         background_color="#262730",
         update_streamlit=True,
         height=400,
         width=800,
-        drawing_mode="rect",  # Trava o mouse para desenhar apenas retângulos perfeitos (cômodos)
+        drawing_mode="rect",
         display_toolbar=True,
         key="mesa_desenho_modular",
     )
 
-    # Tratamento dos dados gerados pelo mouse
     if canvas_result.json_data is not None:
         objects = canvas_result.json_data["objects"]
         for idx, obj in enumerate(objects):
             if obj["type"] == "rect":
-                # Captura os dados em pixels do Canvas
                 left = obj["left"]
                 top = obj["top"]
                 width = obj["width"]
                 height = obj["height"]
                 
-                # Converte pixels para metros reais da engenharia
                 px_real = left / PIXELS_POR_METRO
                 py_real = top / PIXELS_POR_METRO
                 largura_real = width / PIXELS_POR_METRO
@@ -75,7 +71,7 @@ with tab_desenho:
     else:
         st.warning("⚠️ Nenhum cômodo desenhado ainda. Use o mouse para traçar um retângulo no quadro acima.")
 
-# Se não desenhou nada, interrompe para evitar erros matemáticos nas outras abas
+# Se não houver cômodos, interrompe antes de tentar calcular as abas seguintes
 if not comodos_detectados:
     st.stop()
 
@@ -86,7 +82,6 @@ total_forma_paredes = 0.0
 total_forma_lajes = 0.0
 total_telas_aço = 0.0
 
-# Assumindo uma média de 1 porta e 1 janela padrão por ambiente desenhado
 area_porta_gabarito = 0.80 * 2.10  
 area_janela_gabarito = 1.20 * 1.00 
 
@@ -112,8 +107,8 @@ for c in comodos_detectados:
 concreto_global = total_concreto_paredes + total_concreto_lajes
 forma_global = total_forma_paredes + total_forma_lajes
 
-# --- ABA 1: LISTA DE MATERIAIS ---
-with tab_materials:
+# ABA 1: LISTA DE MATERIAIS (INDEXADA CORRETAMENTE)
+with tab1:
     st.subheader("📋 Lista de Materiais Consolidada do Desenho")
     st.dataframe(comodos_detectados, use_container_width=True)
     
@@ -128,8 +123,8 @@ with tab_materials:
         st.metric(label="Área Metálica de Tela Soldada Q092", value=f"{total_telas_aço:.2f} m²")
         st.caption("Armadura de aço centralizada nas paredes maciças")
 
-# --- ABA 2: MAQUETE 3D BASEADA NO CANVAS ---
-with tab_3d:
+# ABA 2: MAQUETE 3D (INDEXADA CORRETAMENTE)
+with tab2:
     st.subheader("🧱 Planta Baixa Transposta em 3D")
     st.write("Gire o modelo abaixo para analisar os módulos nas posições exatas em que foram desenhados com o mouse.")
     
@@ -146,7 +141,6 @@ with tab_3d:
         if (px + w) > max_x: max_x = (px + w)
         if (py + h) > max_y: max_y = (py + h)
             
-        # 1. Paredes de Concreto Monolítico
         fig_3d.add_trace(go.Mesh3d(
             x=[px, px+w, px+w, px, px, px+w, px+w, px],
             y=[py, py, py+h, py+h, py, py, py+h, py+h],
@@ -154,7 +148,6 @@ with tab_3d:
             color='rgb(140, 145, 150)', opacity=0.65, flatshading=True, name=nome
         ))
         
-        # 2. Laje Superior com Beiral Técnico (25cm)
         b = 0.25  
         fig_3d.add_trace(go.Mesh3d(
             x=[px-b, px+w+b, px+w+b, px-b],
@@ -163,10 +156,9 @@ with tab_3d:
             color='rgb(175, 180, 185)', opacity=0.85, name=f"Laje {nome}"
         ))
         
-        # 3. Contornos pretos estruturais
         linhas_c = [
             ([px, px+w, px+w, px, px], [py, py, py+h, py+h, py], [pe_direito]*5),
-            ([px, px+w, px+w, px, px], [py, py, py+h, py+h, py], [0]*5),
+            ([px, px+w, px+w, px, px], [py, py, py+h, py+h, py],*5),
             ([px, px], [py, py], [0, pe_direito]),
             ([px+w, px+w], [py, py], [0, pe_direito]),
             ([px+w, px+w], [py+h, py+h], [0, pe_direito]),
@@ -175,17 +167,14 @@ with tab_3d:
         for lx, ly, lz in linhas_c:
             fig_3d.add_trace(go.Scatter3d(x=lx, y=ly, z=lz, mode='lines', line=dict(color='black', width=3), showlegend=False))
             
-        # 4. Texto Identificador do Ambiente
         fig_3d.add_trace(go.Scatter3d(
             x=[px + w/2], y=[py + h/2], z=[pe_direito + 0.3],
             mode="text", text=[nome], textfont=dict(color="cyan", size=11, family="Arial Black")
         ))
         
-        # 5. Linhas de Cota Vermelhas Individuais
         fig_3d.add_trace(go.Scatter3d(x=[px + w/2], y=[py - 0.2], z=[0.05], mode="text", text=[f"{w:.2f}m"], textfont=dict(color="red", size=11)))
         fig_3d.add_trace(go.Scatter3d(x=[px + w + 0.2], y=[py + h/2], z=[0.05], mode="text", text=[f"{h:.2f}m"], textfont=dict(color="red", size=11)))
 
-    # Cotas Globais da Edificação (Linhas Laranja)
     fig_3d.add_trace(go.Scatter3d(x=[max_x/2], y=[-0.8], z=[0.1], mode="text", text=[f"LARGURA MÁXIMA DA CASA = {max_x:.2f} m"], textfont=dict(color="orange", size=13, family="Arial Black")))
     fig_3d.add_trace(go.Scatter3d(x=[max_x + 0.8], y=[max_y/2], z=[0.1], mode="text", text=[f"COMPRIMENTO MÁXIMO DA CASA = {max_y:.2f} m"], textfont=dict(color="orange", size=13, family="Arial Black")))
 
