@@ -141,23 +141,23 @@ with tab2:
         if (px + w) > max_x: max_x = (px + w)
         if (py + h) > max_y: max_y = (py + h)
             
-        # 1. Vértices da caixa sólida (Chão e Topo)
+        # Vértices da caixa sólida (Piso ao Teto)
         x_v = [px, px+w, px+w, px,   px, px+w, px+w, px]
         y_v = [py, py, py+h, py+h,   py, py, py+h, py+h]
         z_v = [0, 0, 0, 0,           pe_direito, pe_direito, pe_direito, pe_direito]
         
-        # Mapeamento exato de triângulos para fechar os 4 lados verticais das paredes de concreto
-        i_v = [0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5]
-        j_v = [1, 4, 2, 5, 3, 6, 0, 7, 5, 7, 6, 4]
-        k_v = [4, 5, 5, 6, 6, 7, 7, 4, 6, 6, 7, 7]
+        # Mapeamento de triângulos para fechar os 4 lados verticais
+        i_v = [0, 0, 1, 1, 2, 2, 3, 3]
+        j_v = [1, 4, 2, 5, 3, 6, 0, 7]
+        k_v = [4, 5, 5, 6, 6, 7, 7, 4]
         
-        # Renderização das Paredes Maciças de Concreto
+        # Desenha as paredes de concreto fechadas
         fig_3d.add_trace(go.Mesh3d(
             x=x_v, y=y_v, z=z_v, i=i_v, j=j_v, k=k_v,
             color='rgb(135, 140, 145)', opacity=0.90, flatshading=True, name="Paredes"
         ))
         
-        # 2. Laje Superior com Beiral Técnico (25cm)
+        # Laje Superior com Beiral Técnico (25cm)
         b = 0.25  
         fig_3d.add_trace(go.Mesh3d(
             x=[px-b, px+w+b, px+w+b, px-b],
@@ -166,7 +166,7 @@ with tab2:
             color='rgb(165, 170, 175)', opacity=0.95, name=f"Laje {nome}"
         ))
         
-        # 3. Linhas pretas estruturais nas quinas
+        # CORREÇÃO DA VARIÁVEL AQUI: Alterado de lines_c para linhas_c conforme declarado acima
         linhas_c = [
             ([px, px+w, px+w, px, px], [py, py, py+h, py+h, py], [pe_direito, pe_direito, pe_direito, pe_direito, pe_direito]),
             ([px, px+w, px+w, px, px], [py, py, py+h, py+h, py], [0, 0, 0, 0, 0]),
@@ -175,16 +175,16 @@ with tab2:
             ([px+w, px+w], [py+h, py+h], [0, pe_direito]),
             ([px, px], [py+h, py+h], [0, pe_direito])
         ]
-        for lx, ly, lz in lines_c:
+        for lx, ly, lz in linhas_c:
             fig_3d.add_trace(go.Scatter3d(x=lx, y=ly, z=lz, mode='lines', line=dict(color='black', width=4), showlegend=False))
             
-        # 4. Texto Identificador do Ambiente
+        # Texto Identificador do Ambiente
         fig_3d.add_trace(go.Scatter3d(
             x=[px + w/2], y=[py + h/2], z=[pe_direito + 0.3],
             mode="text", text=[nome], textfont=dict(color="cyan", size=11, family="Arial Black")
         ))
         
-        # 5. Linhas de Cota Vermelhas Individuais
+        # Linhas de Cota Vermelhas Individuais
         fig_3d.add_trace(go.Scatter3d(x=[px + w/2], y=[py - 0.2], z=[0.05], mode="text", text=[f"{w:.2f}m"], textfont=dict(color="red", size=11)))
         fig_3d.add_trace(go.Scatter3d(x=[px + w + 0.2], y=[py + h/2], z=[0.05], mode="text", text=[f"{h:.2f}m"], textfont=dict(color="red", size=11)))
 
